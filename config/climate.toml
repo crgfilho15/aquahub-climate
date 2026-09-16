@@ -55,6 +55,9 @@ calculate_anomalies = true
 preserve_individual_gcm_results = true
 
 [pilot]
+# Configuration for the future-climate experiment scaffold
+# (src/future_climate_experiment.py). Not used by the interactive
+# platform below.
 region_type = "NUTS3"
 region_name = "Douro"
 variable = "tas"
@@ -63,3 +66,17 @@ period = "2041-2070"
 
 # Deliberately empty until availability and methodology are confirmed
 gcm = ""
+
+[pilot_platform]
+# Configuration for the interactive pilot platform
+# (scripts/build_pilot_douro.py + api/ + web/).
+#
+# v1 deliberately shows only the validated historical baseline.
+# Future SSP/GCM scenarios are not included until the dataset,
+# GCM set and temporal resolution are confirmed with the research
+# team (see docs/02_methodological_questions_for_team.md).
+region_type = "NUTS3"
+region_name = "Douro"
+variable = "tas"
+period = "1981-2010"
+dataset = "CHELSA climatologies v2.1"

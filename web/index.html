@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AquaHub Climate — Piloto Douro</title>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header id="banner">
+    <h1>AquaHub Climate — Piloto Douro</h1>
+    <p id="banner-subtitle">a carregar metadados...</p>
+    <p id="banner-warning" class="pilot-warning" hidden></p>
+  </header>
+
+  <main>
+    <div id="map"></div>
+
+    <aside id="panel">
+      <div id="panel-empty">
+        <p>Clique num município no mapa para ver a sua climatologia.</p>
+      </div>
+      <div id="panel-content" hidden>
+        <h2 id="panel-name"></h2>
+        <p id="panel-annual"></p>
+        <svg id="panel-chart" viewBox="0 0 360 180" width="100%" height="180"></svg>
+        <p id="panel-source"></p>
+      </div>
+    </aside>
+  </main>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

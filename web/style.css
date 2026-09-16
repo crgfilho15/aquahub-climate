@@ -1,0 +1,110 @@
+:root {
+  --ink: #1c2430;
+  --muted: #5b6675;
+  --border: #dde2e8;
+  --panel-bg: #ffffff;
+  --warn-bg: #fff6e5;
+  --warn-border: #e8c674;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  background: #f4f6f8;
+}
+
+header#banner {
+  padding: 12px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+}
+
+#banner h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+#banner-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+#banner-warning {
+  max-width: 640px;
+}
+
+main {
+  display: flex;
+  height: calc(100vh - 62px);
+}
+
+#map {
+  flex: 1;
+}
+
+#panel {
+  width: 320px;
+  padding: 16px;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+#panel-empty p {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+#panel-name {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+#panel-annual {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+#panel-source {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.leaflet-popup-content {
+  font-size: 0.85rem;
+}
+
+#legend {
+  background: white;
+  padding: 8px 10px;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+#legend .swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.pilot-warning {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
