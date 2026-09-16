@@ -155,6 +155,49 @@ def get_municipalities_by_nuts3(
 
     return selected
 
+def get_nuts3_bounds(
+    municipalities_gdf: gpd.GeoDataFrame,
+    nuts3_name: str,
+    target_crs: str = "EPSG:4326",
+) -> dict[str, float]:
+    """
+    Obtém os limites espaciais de uma região NUTS III.
+
+    Parameters
+    ----------
+    municipalities_gdf : geopandas.GeoDataFrame
+        Camada contendo os municípios.
+
+    nuts3_name : str
+        Nome da região NUTS III.
+
+    target_crs : str
+        CRS de destino.
+        Por padrão, EPSG:4326 para compatibilidade
+        com os dados climáticos CHELSA.
+
+    Returns
+    -------
+    dict[str, float]
+        Limites espaciais nomeados da região:
+        xmin, xmax, ymin e ymax.
+    """
+
+    region = get_municipalities_by_nuts3(
+        municipalities_gdf=municipalities_gdf,
+        nuts3_name=nuts3_name,
+        target_crs=target_crs,
+    )
+
+    xmin, ymin, xmax, ymax = region.total_bounds
+
+    return {
+        "xmin": float(xmin),
+        "xmax": float(xmax),
+        "ymin": float(ymin),
+        "ymax": float(ymax),
+    }
+
 def get_municipalities_by_names(
     municipalities_gdf: gpd.GeoDataFrame,
     municipality_names: list[str],
