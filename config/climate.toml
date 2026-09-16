@@ -9,7 +9,8 @@ period = "1981-2010"
 spatial_resolution = "30 arcsec (~1 km)"
 
 [future]
-dataset = "CHELSA-ISIMIP3b"
+dataset = "CHELSA-climatologies-v2.1-CMIP6"
+model_set = "ISIMIP3b"
 periods = [
     "2011-2040",
     "2041-2070",

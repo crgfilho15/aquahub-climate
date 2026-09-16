@@ -14,7 +14,7 @@ from src.climate_paths import (
 def make_config():
     return {
         "future": {
-            "dataset": "CHELSA-ISIMIP3b",
+            "dataset": "CHELSA-climatologies-v2.1-CMIP6",
             "periods": [
                 "2011-2040",
                 "2041-2070",
@@ -46,7 +46,7 @@ def make_config():
 
 
 def test_slugify_dataset_name():
-    assert slugify("CHELSA-ISIMIP3b") == "chelsa_isimip3b"
+    assert slugify("CHELSA-climatologies-v2.1-CMIP6") == "chelsa_climatologies_v2_1_cmip6"
 
 
 def test_build_future_raw_directory():
@@ -61,7 +61,7 @@ def test_build_future_raw_directory():
 
     assert result == Path(
         "data/raw/future/"
-        "chelsa_isimip3b/"
+        "chelsa_climatologies_v2_1_cmip6/"
         "MRI-ESM2-0/"
         "ssp370/"
         "tas"

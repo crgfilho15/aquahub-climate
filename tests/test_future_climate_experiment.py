@@ -14,7 +14,7 @@ from src.future_climate_experiment import (
 def make_config():
     return {
         "future": {
-            "dataset": "CHELSA-ISIMIP3b",
+            "dataset": "CHELSA-climatologies-v2.1-CMIP6",
             "periods": [
                 "2011-2040",
                 "2041-2070",
@@ -70,7 +70,7 @@ def test_create_future_climate_experiment():
 
     assert experiment.raw_directory == Path(
         "data/raw/future/"
-        "chelsa_isimip3b/"
+        "chelsa_climatologies_v2_1_cmip6/"
         "MRI-ESM2-0/"
         "ssp370/"
         "tas"

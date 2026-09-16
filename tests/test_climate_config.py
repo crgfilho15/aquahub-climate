@@ -17,7 +17,8 @@ def make_valid_config():
             "period": "1981-2010",
         },
         "future": {
-            "dataset": "CHELSA-ISIMIP3b",
+            "dataset": "CHELSA-climatologies-v2.1-CMIP6",
+            "model_set": "ISIMIP3b",
             "periods": ["2041-2070"],
             "scenarios": ["ssp370"],
         },
@@ -113,5 +114,27 @@ def test_unconfigured_pilot_gcm_raises_error():
     with pytest.raises(
         ClimateConfigError,
         match="is not configured",
+    ):
+        _validate_climate_config(config)
+
+
+def test_missing_future_dataset_raises_error():
+    config = make_valid_config()
+    del config["future"]["dataset"]
+
+    with pytest.raises(
+        ClimateConfigError,
+        match="Future climate dataset must be configured",
+    ):
+        _validate_climate_config(config)
+
+
+def test_missing_future_model_set_raises_error():
+    config = make_valid_config()
+    del config["future"]["model_set"]
+
+    with pytest.raises(
+        ClimateConfigError,
+        match="Future climate model set must be configured",
     ):
         _validate_climate_config(config)

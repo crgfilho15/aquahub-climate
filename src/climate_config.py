@@ -58,6 +58,8 @@ def _validate_climate_config(config: dict) -> None:
     models = config["models"]
     pilot = config["pilot"]
 
+    dataset = future.get("dataset", "").strip()
+    model_set = future.get("model_set", "").strip()
     periods = future.get("periods", [])
     scenarios = future.get("scenarios", [])
     gcms = models.get("gcms", [])
@@ -66,6 +68,16 @@ def _validate_climate_config(config: dict) -> None:
         variables.get("core", [])
         + variables.get("optional", [])
     )
+
+    if not dataset:
+        raise ClimateConfigError(
+            "Future climate dataset must be configured."
+        )
+
+    if not model_set:
+        raise ClimateConfigError(
+            "Future climate model set must be configured."
+        )
 
     if not periods:
         raise ClimateConfigError(
