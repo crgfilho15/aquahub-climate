@@ -23,6 +23,22 @@ The definitive climate datasets and modelling methodology are still under discus
 
 ---
 
+## Interactive pilot platform (Douro, v1)
+
+A first interactive map platform for the Douro NUTS III region is available, built on the validated baseline climatology pipeline below. It intentionally shows only the historical baseline (`tas`, 1981–2010) — future SSP/GCM scenarios are not yet included, pending methodological confirmation (see `docs/02_methodological_questions_for_team.md`).
+
+Full details, architecture rationale and known limitations: `docs/03_pilot_interactive_platform.md`.
+
+Quick start, once `data/raw/` is populated as described below:
+
+```powershell
+python -m scripts.build_pilot_douro
+uvicorn api.main:app --reload
+# open http://127.0.0.1:8000
+```
+
+---
+
 ## Current prototype
 
 The current proof of concept uses:
@@ -95,14 +111,23 @@ aquahub-climate/
 │
 ├── .venv/
 │
+├── api/
+│   └── main.py
+│
+├── config/
+│   └── climate.toml
+│
 ├── data/
 │   ├── raw/
 │   │   ├── chelsa/
 │   │   └── boundaries/
 │   └── processed/
+│       └── pilot/            (generated locally, not versioned)
 │
 ├── docs/
-│   └── 01_climate_baseline_methodology.md
+│   ├── 01_climate_baseline_methodology.md
+│   ├── 02_methodological_questions_for_team.md
+│   └── 03_pilot_interactive_platform.md
 │
 ├── notebooks/
 │   └── 01_chelsa_exploration.ipynb
@@ -111,19 +136,32 @@ aquahub-climate/
 │   ├── figures/
 │   └── tables/
 │
+├── scripts/
+│   └── build_pilot_douro.py
+│
 ├── src/
 │   ├── boundary_processing.py
+│   ├── climate_acquisition.py
 │   ├── climate_analysis.py
+│   ├── climate_config.py
+│   ├── climate_paths.py
 │   ├── climate_pipeline.py
 │   ├── climate_processing.py
-│   └── data_io.py
+│   ├── climate_region.py
+│   ├── climate_selection.py
+│   ├── data_io.py
+│   ├── future_climate_experiment.py
+│   ├── future_climate_pipeline.py
+│   └── pilot_export.py
+│
+├── web/
+│   ├── index.html
+│   ├── app.js
+│   ├── style.css
+│   └── vendor/leaflet/
 │
 ├── tests/
-│   ├── test_boundary_processing.py
-│   ├── test_climate_analysis.py
-│   ├── test_climate_pipeline.py
-│   ├── test_climate_processing.py
-│   └── test_data_io.py
+│   └── ... (one test module per src/ module, plus test_pilot_export.py and test_pilot_api.py)
 │
 ├── pytest.ini
 ├── README.md
@@ -674,8 +712,10 @@ pytest -v
 Current test status:
 
 ```text
-21 tests passed
+78 passed, 1 skipped
 ```
+
+The skipped test is the pre-existing opt-in remote CHELSA integration check (`AQUAHUB_RUN_REMOTE_TESTS=1`), which requires live network access.
 
 The current test suite covers five main modules.
 
@@ -959,7 +999,7 @@ Short-term technical priorities include:
 12. Define agroclimatic zoning rules.
 13. Preserve high-resolution raster outputs for the scientific atlas.
 14. Expand regional processing beyond the current Portuguese prototype.
-15. Design the data layer required by the future interactive web platform.
+15. Extend the interactive pilot platform (`docs/03_pilot_interactive_platform.md`) beyond Douro and beyond the historical `tas` baseline, once the items above are confirmed.
 
 ---
 

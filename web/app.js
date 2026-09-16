@@ -1,0 +1,218 @@
+const MONTH_LABELS = [
+  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+];
+
+const COLOR_STOPS = [
+  { t: 0.0, color: [49, 100, 175] },
+  { t: 0.5, color: [247, 234, 173] },
+  { t: 1.0, color: [178, 40, 33] },
+];
+
+function temperatureToColor(value, min, max) {
+  if (max === min) {
+    return "rgb(150,150,150)";
+  }
+
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+
+  let lower = COLOR_STOPS[0];
+  let upper = COLOR_STOPS[COLOR_STOPS.length - 1];
+
+  for (let i = 0; i < COLOR_STOPS.length - 1; i += 1) {
+    if (t >= COLOR_STOPS[i].t && t <= COLOR_STOPS[i + 1].t) {
+      lower = COLOR_STOPS[i];
+      upper = COLOR_STOPS[i + 1];
+      break;
+    }
+  }
+
+  const span = upper.t - lower.t || 1;
+  const localT = (t - lower.t) / span;
+
+  const rgb = lower.color.map((channel, i) =>
+    Math.round(channel + (upper.color[i] - channel) * localT)
+  );
+
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
+function drawMonthlyChart(svg, monthlyValues) {
+  svg.innerHTML = "";
+
+  const width = 360;
+  const height = 180;
+  const padding = { top: 12, right: 12, bottom: 24, left: 32 };
+
+  const min = Math.min(...monthlyValues);
+  const max = Math.max(...monthlyValues);
+  const span = max - min || 1;
+
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  const xFor = (i) =>
+    padding.left + (i / (monthlyValues.length - 1)) * plotWidth;
+
+  const yFor = (v) =>
+    padding.top + plotHeight - ((v - min) / span) * plotHeight;
+
+  const points = monthlyValues
+    .map((v, i) => `${xFor(i)},${yFor(v)}`)
+    .join(" ");
+
+  const ns = "http://www.w3.org/2000/svg";
+
+  const axis = document.createElementNS(ns, "line");
+  axis.setAttribute("x1", padding.left);
+  axis.setAttribute("y1", height - padding.bottom);
+  axis.setAttribute("x2", width - padding.right);
+  axis.setAttribute("y2", height - padding.bottom);
+  axis.setAttribute("stroke", "#c7ccd3");
+  svg.appendChild(axis);
+
+  const polyline = document.createElementNS(ns, "polyline");
+  polyline.setAttribute("points", points);
+  polyline.setAttribute("fill", "none");
+  polyline.setAttribute("stroke", "#2f6fb2");
+  polyline.setAttribute("stroke-width", "2");
+  svg.appendChild(polyline);
+
+  monthlyValues.forEach((v, i) => {
+    const circle = document.createElementNS(ns, "circle");
+    circle.setAttribute("cx", xFor(i));
+    circle.setAttribute("cy", yFor(v));
+    circle.setAttribute("r", "2.5");
+    circle.setAttribute("fill", "#2f6fb2");
+    svg.appendChild(circle);
+
+    if (i % 2 === 0) {
+      const label = document.createElementNS(ns, "text");
+      label.setAttribute("x", xFor(i));
+      label.setAttribute("y", height - padding.bottom + 14);
+      label.setAttribute("font-size", "9");
+      label.setAttribute("fill", "#5b6675");
+      label.setAttribute("text-anchor", "middle");
+      label.textContent = MONTH_LABELS[i];
+      svg.appendChild(label);
+    }
+  });
+}
+
+function showPanel(properties) {
+  document.getElementById("panel-empty").hidden = true;
+  const content = document.getElementById("panel-content");
+  content.hidden = false;
+
+  document.getElementById("panel-name").textContent = properties.municipio;
+
+  document.getElementById("panel-annual").textContent =
+    `Temperatura média anual (${properties.period}): ` +
+    `${properties.annual_mean_celsius.toFixed(2)} °C`;
+
+  document.getElementById("panel-source").textContent =
+    `Fonte: ${properties.source} · variável: ${properties.variable}`;
+
+  drawMonthlyChart(
+    document.getElementById("panel-chart"),
+    properties.monthly_mean_celsius
+  );
+}
+
+function buildLegend(min, max) {
+  const legend = L.control({ position: "bottomright" });
+
+  legend.onAdd = () => {
+    const div = L.DomUtil.create("div", "info-legend");
+    const steps = 5;
+
+    let html = '<div id="legend"><strong>Temp. média anual (°C)</strong><br>';
+
+    for (let i = 0; i < steps; i += 1) {
+      const value = min + ((max - min) * i) / (steps - 1);
+      const color = temperatureToColor(value, min, max);
+      html += `<span class="swatch" style="background:${color}"></span>${value.toFixed(1)}<br>`;
+    }
+
+    html += "</div>";
+    div.innerHTML = html;
+
+    return div;
+  };
+
+  return legend;
+}
+
+async function loadPilot() {
+  const subtitle = document.getElementById("banner-subtitle");
+
+  let meta;
+  try {
+    const metaResponse = await fetch("/api/pilot/douro/meta");
+    if (!metaResponse.ok) {
+      throw new Error(await metaResponse.text());
+    }
+    meta = await metaResponse.json();
+  } catch (err) {
+    subtitle.innerHTML =
+      "Dados do piloto não encontrados. Rode " +
+      "<code>python -m scripts.build_pilot_douro</code> localmente " +
+      "e reinicie a API.";
+    return;
+  }
+
+  subtitle.innerHTML =
+    `${meta.dataset} · variável <strong>${meta.variable}</strong> · ` +
+    `período <strong>${meta.period}</strong> · ` +
+    `metodologia: <strong>${meta.methodology_status}</strong>`;
+
+  if (!meta.future_scenarios_included) {
+    const warning = document.getElementById("banner-warning");
+    warning.textContent =
+      "Cenários futuros (SSP/GCM) ainda não incluídos — " +
+      "aguardando validação metodológica com o professor.";
+    warning.hidden = false;
+  }
+
+  const geoResponse = await fetch(`/api/pilot/${meta.region_name.toLowerCase()}`);
+  const featureCollection = await geoResponse.json();
+
+  const map = L.map("map");
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "© OpenStreetMap contributors",
+  }).addTo(map);
+
+  const values = featureCollection.features.map(
+    (f) => f.properties.annual_mean_celsius
+  );
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+
+  const geoLayer = L.geoJSON(featureCollection, {
+    style: (feature) => ({
+      fillColor: temperatureToColor(
+        feature.properties.annual_mean_celsius,
+        min,
+        max
+      ),
+      fillOpacity: 0.75,
+      weight: 1,
+      color: "#3a4250",
+    }),
+    onEachFeature: (feature, layer) => {
+      layer.bindTooltip(
+        `${feature.properties.municipio}: ` +
+        `${feature.properties.annual_mean_celsius.toFixed(2)} °C`
+      );
+      layer.on("click", () => showPanel(feature.properties));
+    },
+  }).addTo(map);
+
+  map.fitBounds(geoLayer.getBounds(), { padding: [16, 16] });
+
+  buildLegend(min, max).addTo(map);
+}
+
+loadPilot();

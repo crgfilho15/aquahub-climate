@@ -7,6 +7,7 @@ from src.boundary_processing import (
     get_municipality_geometry,
     get_municipalities_by_names,
     get_municipalities_by_nuts3,
+    get_nuts3_bounds,
 )
 
 def create_test_municipalities():
@@ -164,3 +165,30 @@ def test_get_municipalities_by_nuts3():
     }
 
     assert result.crs.to_epsg() == 4326
+
+def test_get_nuts3_bounds():
+    """
+    Verifica se os limites espaciais da NUTS III
+    são retornados na ordem nominal correta.
+    """
+
+    municipalities = create_test_municipalities()
+
+    region = get_municipalities_by_nuts3(
+        municipalities_gdf=municipalities,
+        nuts3_name="Douro",
+    )
+
+    xmin, ymin, xmax, ymax = region.total_bounds
+
+    result = get_nuts3_bounds(
+        municipalities_gdf=municipalities,
+        nuts3_name="Douro",
+    )
+
+    assert result == {
+        "xmin": float(xmin),
+        "xmax": float(xmax),
+        "ymin": float(ymin),
+        "ymax": float(ymax),
+    }
