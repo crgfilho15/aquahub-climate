@@ -1,6 +1,9 @@
 ﻿from pathlib import Path
 
+import geopandas as gpd
 import pytest
+
+from shapely.geometry import box
 
 from src.climate_selection import (
     ClimateSelectionError,
@@ -148,3 +151,44 @@ def test_experiment_is_immutable():
 
     with pytest.raises(Exception):
         experiment.raw_directory = Path("other")
+
+
+def test_experiment_resolves_selection_bounding_box():
+    config = make_config()
+
+    selection = FutureClimateSelection.from_pilot(
+        config,
+        "MRI-ESM2-0",
+    )
+
+    experiment = FutureClimateExperiment.from_selection(
+        config,
+        selection,
+    )
+
+    municipalities = gpd.GeoDataFrame(
+        {
+            "municipio": [
+                "Municipality A",
+                "Municipality B",
+            ],
+            "nuts3": [
+                "Douro",
+                "Douro",
+            ],
+        },
+        geometry=[
+            box(-7.9, 41.0, -7.4, 41.3),
+            box(-7.5, 40.8, -6.7, 41.5),
+        ],
+        crs="EPSG:4326",
+    )
+
+    bbox = experiment.resolve_bounding_box(
+        municipalities_gdf=municipalities,
+    )
+
+    assert bbox.xmin == -7.9
+    assert bbox.xmax == -6.7
+    assert bbox.ymin == 40.8
+    assert bbox.ymax == 41.5

@@ -3,11 +3,15 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+import geopandas as gpd
+
+from src.climate_acquisition import BoundingBox
 from src.climate_paths import (
     build_ensemble_directory,
     build_future_processed_directory,
     build_future_raw_directory,
 )
+from src.climate_region import resolve_selection_bounding_box
 from src.climate_selection import FutureClimateSelection
 
 
@@ -57,6 +61,20 @@ class FutureClimateExperiment:
             raw_directory=raw_directory,
             processed_directory=processed_directory,
             ensemble_directory=ensemble_directory,
+        )
+
+    def resolve_bounding_box(
+        self,
+        municipalities_gdf: gpd.GeoDataFrame,
+    ) -> BoundingBox:
+        """
+        Resolve the geographic bounding box
+        of this experiment selection.
+        """
+
+        return resolve_selection_bounding_box(
+            selection=self.selection,
+            municipalities_gdf=municipalities_gdf,
         )
 
     @property
