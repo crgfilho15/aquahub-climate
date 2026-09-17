@@ -412,16 +412,36 @@ once real Phase 3 data is available (the partial ssp585/2041-2070 CSV
 already works; re-run once the full sweep finishes for the complete
 picture).
 
-#### Phase 5 — Climate-change anomalies
+#### Phase 5 — Climate-change anomalies — ✅ done (Sept 2026)
 
-*Depends on Phase 4; independent of Phases 6–8.*
+*Depends on Phase 4, which is now done; independent of Phases 6–8.*
 
-- Compute future-minus-baseline deltas per variable/SSP/period (absolute
-  for temperature, absolute + % for precipitation, per the earlier
-  architecture discussion).
-- Store as first-class outputs (not recomputed on every request) — these
-  are the numbers the platform should actually display, not raw futures
-  alone.
+- `src/climate_anomalies.py` (new): `calculate_climate_anomalies` joins
+  Phase 4's ensemble output against Phase 1's historical baseline
+  output (`calculate_monthly_climatology_for_regions`) on municipality/
+  month/variable, and computes `anomaly_absolute` (future − baseline)
+  for every variable, plus `anomaly_percent` for precipitation only
+  (`PERCENT_ANOMALY_VARIABLES = {"pr"}`) — a "% warmer" reading near
+  0 °C isn't meaningful, but "% wetter/drier" is. The same baseline is
+  reused across every scenario/period row (a many-to-one join); a
+  baseline with more than one row per municipality/month/variable (a
+  caller passing multiple periods by mistake) raises an error rather
+  than silently picking one arbitrarily, same for any row with no
+  matching baseline at all.
+- `scripts/build_anomaly_climatology.py` (new): takes a Phase 4
+  ensemble CSV, recomputes the historical baseline the same way
+  `scripts/build_pilot_region.py` does, and writes the anomaly result
+  to `data/processed/anomalies/`.
+- `tests/test_climate_anomalies.py` (new, 7 tests, synthetic fixtures
+  only): temperature gets absolute-only anomaly, precipitation gets
+  both absolute and percent, the same baseline is correctly reused
+  across scenarios, and the four error cases (missing ensemble/
+  historical columns, a duplicated baseline, a baseline missing for
+  some row).
+
+**Deliverable:** run
+`python -m scripts.build_anomaly_climatology <path to a Phase 4 ensemble CSV>`
+once real Phase 3/4 data is available for a region/variable.
 
 #### Phase 6 — General bioclimatic indices
 

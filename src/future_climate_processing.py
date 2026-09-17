@@ -11,6 +11,7 @@ processing.preserve_individual_gcm_results) - averaging across GCMs is
 Phase 4 (ensemble), not this module.
 """
 
+import os
 from pathlib import Path
 
 import geopandas as gpd
@@ -34,9 +35,16 @@ def persist_future_month_raster(
 ) -> Path:
     """
     Persist one downloaded future-climatology month subset as a local
-    GeoTIFF, so repeated runs (e.g. re-running a failed later GCM) can
-    reuse it instead of re-downloading - config/climate.toml's
-    processing.preserve_rasters.
+    GeoTIFF, so repeated runs (e.g. re-running a failed later GCM, or
+    resuming after a Ctrl+C) can reuse it instead of re-downloading -
+    config/climate.toml's processing.preserve_rasters.
+
+    Writes to a temporary ".part" file first and only renames it to
+    the final path once the write completes (os.replace is atomic on
+    both POSIX and Windows). Without this, an interruption mid-write
+    (e.g. Ctrl+C) could leave a truncated file at the final path,
+    which the caller's exists()-based skip check would then wrongly
+    treat as a complete, already-downloaded month on the next run.
     """
 
     data_vars = list(monthly_dataset.data_vars)
@@ -68,7 +76,13 @@ def persist_future_month_raster(
         / f"CHELSA_{variable}_{month:02d}_{period}.tif"
     )
 
-    data_array.rio.to_raster(raster_path)
+    tmp_path = raster_path.with_name(raster_path.name + ".part")
+
+    # driver is explicit because GDAL infers it from the file
+    # extension by default, and ".tif.part" doesn't resolve to GTiff.
+    data_array.rio.to_raster(tmp_path, driver="GTiff")
+
+    os.replace(tmp_path, raster_path)
 
     return raster_path
 
