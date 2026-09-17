@@ -64,7 +64,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--variable", default="tas")
     parser.add_argument("--gcm", default="MRI-ESM2-0")
-    parser.add_argument("--scenario", default="ssp370")
+    parser.add_argument("--scenario", default="ssp585")
     parser.add_argument("--period", default="2041-2070")
     parser.add_argument("--month", type=int, default=7)
     args = parser.parse_args()

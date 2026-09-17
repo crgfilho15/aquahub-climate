@@ -52,7 +52,7 @@ def test_load_real_climate_config():
     assert config["historical"]["period"] == "1981-2010"
     assert config["pilot"]["region_name"] == "Douro"
     assert config["pilot"]["variable"] == "tas"
-    assert config["pilot"]["scenario"] == "ssp370"
+    assert config["pilot"]["scenario"] == "ssp585"
     assert config["pilot"]["period"] == "2041-2070"
     assert config["pilot"]["gcm"] == ""
 
