@@ -65,22 +65,35 @@ In priority order (blocks the most downstream work first):
 
 ### 3. Track B — engineering roadmap
 
-#### Phase 1 — Generalise the pipeline beyond `tas`
+#### Phase 1 — Generalise the pipeline beyond `tas` — ✅ done (Sept 2026)
 
-*Can start immediately; blocks nothing else; blocked by nothing.*
+*Could start immediately; blocked nothing else; blocked by nothing.*
 
-- Refactor `climate_processing.py` to accept `variable` as a parameter
-  instead of hardcoding `tas` in the raster filename and in the two
-  `variable =` assignments.
-- Extend `climate_pipeline.py`'s municipality/region/NUTS3 functions to
-  pass `variable` through.
-- Validate against the already-downloaded historical CHELSA rasters for
-  `tasmin`, `tasmax`, `pr` (same 1981–2010 baseline, same Douro region —
-  reuses the already-proven zonal-statistics logic, just parametrised).
-- Update `docs/01` and tests accordingly.
+- `climate_processing.py` now has a generic, variable-parameterised core
+  (`calculate_monthly_value_for_regions`, `calculate_monthly_climatology_for_regions`,
+  `calculate_annual_climatology_for_regions`, `process_climatology_for_regions`),
+  registered per-variable in `CHELSA_VARIABLE_UNITS` (`tas`, `tasmin`,
+  `tasmax`, `pr` today; an unsupported variable raises a clear error
+  rather than silently applying the wrong unit conversion).
+- `climate_pipeline.py` got generic counterparts
+  (`process_municipality_climatology`,
+  `process_multiple_municipalities_climatology`,
+  `process_nuts3_climatology`) alongside the original `_temperature`
+  functions, which are now thin wrappers over the same generic core —
+  unchanged signatures, unchanged behaviour, no breakage to the
+  notebook, the pilot export pipeline, or existing tests.
+- `data_io.py` already accepted `variable` as a parameter and needed no
+  changes.
+- Covered by new tests proving the unit-conversion logic is actually
+  correct per variable (temperature converts Kelvin → Celsius;
+  precipitation does not), not just that the code runs.
 
-**Deliverable:** Douro historical climatology for `tas`, `tasmin`, `tasmax`,
-`pr`, with the same validation rigour as the existing `tas` baseline.
+**Remaining before this is validated against real data:** the historical
+CHELSA rasters for `tasmin`, `tasmax`, `pr` still need to be downloaded
+locally (same 1981–2010 baseline, same Douro region) and run through
+`process_nuts3_climatology(..., variable="tasmin")` etc. — the synthetic
+tests prove the logic is correct, not that the real CHELSA files match
+the expected naming/unit assumptions.
 
 #### Phase 2 — Future data acquisition
 

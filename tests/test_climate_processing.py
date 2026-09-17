@@ -16,9 +16,13 @@ from rasterio.transform import from_origin
 from shapely.geometry import box
 
 from src.climate_processing import (
+    calculate_annual_climatology_for_regions,
     calculate_annual_temperature_climatology,
     calculate_annual_temperature_climatology_for_regions,
+    calculate_monthly_climatology_for_regions,
     calculate_monthly_temperature_for_regions,
+    calculate_monthly_value_for_regions,
+    process_climatology_for_regions,
 )
 
 def test_annual_temperature_single_region_constant_values():
@@ -370,3 +374,176 @@ def test_monthly_temperature_uses_partial_pixel_coverage(
         mean_kelvin
         - expected_kelvin
     ) < 1e-6
+
+# ---------------------------------------------------------------------
+# Núcleo genérico (multi-variável): calculate_monthly_value_for_regions,
+# calculate_monthly_climatology_for_regions,
+# calculate_annual_climatology_for_regions, process_climatology_for_regions.
+# ---------------------------------------------------------------------
+
+def _write_synthetic_raster(path, values):
+    """Grava um raster 1x2 EPSG:4326 com os valores fornecidos."""
+
+    raster_data = np.array([values], dtype=np.float32)
+
+    transform = from_origin(west=0, north=1, xsize=1, ysize=1)
+
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=1,
+        width=2,
+        count=1,
+        dtype="float32",
+        crs="EPSG:4326",
+        transform=transform,
+    ) as dst:
+        dst.write(raster_data, 1)
+
+def _one_pixel_region(name):
+    return gpd.GeoDataFrame(
+        {"municipio": [name]},
+        geometry=[box(0, 0, 1, 1)],
+        crs="EPSG:4326",
+    )
+
+def test_monthly_value_for_regions_converts_temperature_variable(tmp_path):
+    """
+    Para variáveis de temperatura (tas, tasmin, tasmax), o valor
+    nativo (Kelvin) deve ser convertido para Celsius.
+    """
+
+    raster_path = tmp_path / "synthetic_tasmin.tif"
+    _write_synthetic_raster(raster_path, [280.0, 280.0])
+
+    result = calculate_monthly_value_for_regions(
+        raster_path=raster_path,
+        regions_gdf=_one_pixel_region("Region"),
+        month=1,
+        variable="tasmin",
+    )
+
+    row = result.iloc[0]
+
+    assert abs(row["mean_native"] - 280.0) < 1e-6
+    assert abs(row["mean_value"] - 6.85) < 1e-6
+    assert row["unit"] == "celsius"
+
+def test_monthly_value_for_regions_does_not_convert_precipitation(tmp_path):
+    """
+    Precipitação (pr) já é entregue pelo CHELSA na unidade final
+    (mm) e não deve sofrer a conversão Kelvin -> Celsius.
+    """
+
+    raster_path = tmp_path / "synthetic_pr.tif"
+    _write_synthetic_raster(raster_path, [45.0, 45.0])
+
+    result = calculate_monthly_value_for_regions(
+        raster_path=raster_path,
+        regions_gdf=_one_pixel_region("Region"),
+        month=1,
+        variable="pr",
+    )
+
+    row = result.iloc[0]
+
+    assert abs(row["mean_native"] - 45.0) < 1e-6
+    assert abs(row["mean_value"] - 45.0) < 1e-6
+    assert row["unit"] == "mm"
+
+def test_monthly_value_for_regions_rejects_unsupported_variable(tmp_path):
+    raster_path = tmp_path / "synthetic_unknown.tif"
+    _write_synthetic_raster(raster_path, [45.0, 45.0])
+
+    with pytest.raises(ValueError, match="não suportada"):
+        calculate_monthly_value_for_regions(
+            raster_path=raster_path,
+            regions_gdf=_one_pixel_region("Region"),
+            month=1,
+            variable="rsds",
+        )
+
+def test_monthly_climatology_for_regions_builds_variable_specific_filenames(
+    tmp_path,
+):
+    """
+    O núcleo genérico deve procurar os rasters usando o padrão
+    de nome de arquivo CHELSA_{variable}_MM_{period}_V.{version}.tif,
+    para qualquer variável suportada — não apenas 'tas'.
+    """
+
+    for month in range(1, 13):
+        raster_path = (
+            tmp_path / f"CHELSA_tasmax_{month:02d}_1981-2010_V.2.1.tif"
+        )
+        _write_synthetic_raster(raster_path, [300.0, 300.0])
+
+    monthly_output = calculate_monthly_climatology_for_regions(
+        chelsa_dir=tmp_path,
+        regions_gdf=_one_pixel_region("Region"),
+        variable="tasmax",
+        period="1981-2010",
+        version="2.1",
+    )
+
+    assert len(monthly_output) == 12
+    assert (monthly_output["variable"] == "tasmax").all()
+    assert (monthly_output["unit"] == "celsius").all()
+    assert monthly_output["mean_value"].round(2).eq(26.85).all()
+
+def test_annual_climatology_for_regions_uses_calendar_day_weighting():
+    """
+    Equivalente genérico de
+    test_annual_temperature_uses_calendar_day_weighting, operando
+    sobre a coluna 'mean_value' em vez de 'mean_celsius'.
+    """
+
+    values = [0.0] * 12
+    values[1] = 10.0  # Fevereiro
+
+    monthly_df = pd.DataFrame(
+        {
+            "municipality": ["Test Region"] * 12,
+            "month": range(1, 13),
+            "mean_value": values,
+        }
+    )
+
+    annual = calculate_annual_climatology_for_regions(
+        monthly_df=monthly_df,
+        start_year=1981,
+        end_year=2010,
+    )
+
+    expected = 10.0 * 847 / 10957
+
+    assert abs(annual.loc[0, "mean_value"] - expected) < 1e-10
+
+def test_process_climatology_for_regions_end_to_end_precipitation(tmp_path):
+    """
+    Teste de integração do núcleo genérico para 'pr', confirmando
+    que o pipeline completo (mensal + anual) preserva a unidade
+    correta e não aplica a conversão de temperatura.
+    """
+
+    for month in range(1, 13):
+        raster_path = tmp_path / f"CHELSA_pr_{month:02d}_1981-2010_V.2.1.tif"
+        _write_synthetic_raster(raster_path, [60.0, 60.0])
+
+    monthly_output, annual_output = process_climatology_for_regions(
+        chelsa_dir=tmp_path,
+        regions_gdf=_one_pixel_region("Region"),
+        variable="pr",
+        period="1981-2010",
+        version="2.1",
+    )
+
+    assert (monthly_output["unit"] == "mm").all()
+
+    annual_row = annual_output.iloc[0]
+
+    assert annual_row["variable"] == "pr"
+    assert annual_row["unit"] == "mm"
+    assert abs(annual_row["mean_value"] - 60.0) < 1e-6
+    assert annual_row["source"] == "CHELSA climatologies v2.1"

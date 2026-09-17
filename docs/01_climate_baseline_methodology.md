@@ -563,6 +563,8 @@ The regional functions now represent the primary scientific implementation.
 
 Legacy single-region functions remain available as wrappers to preserve compatibility with existing notebook calls.
 
+**Multi-variable core (September 2026):** the processing core was generalised beyond `tas`. `calculate_monthly_value_for_regions`, `calculate_monthly_climatology_for_regions`, `calculate_annual_climatology_for_regions` and `process_climatology_for_regions` accept any CHELSA variable registered in `CHELSA_VARIABLE_UNITS` (currently `tas`, `tasmin`, `tasmax`, `pr`), applying the correct unit conversion for each (Kelvin → Celsius for temperature variables; no conversion for precipitation, already delivered in mm). The original `tas`-specific functions (`calculate_monthly_temperature_for_regions`, `process_temperature_climatology_for_regions`, etc.) are unchanged in signature and behaviour — they are now thin wrappers around this generic core, so existing notebook cells, the pilot export pipeline and existing tests did not need to change. See `docs/04_roadmap_future_and_bioclimatic_indices.md` Phase 1.
+
 ---
 
 ### `src/climate_pipeline.py`
@@ -602,6 +604,8 @@ monthly climatologies
       ↓
 annual climatologies
 ```
+
+Each workflow also has a generic, variable-parameterised counterpart (`process_municipality_climatology`, `process_multiple_municipalities_climatology`, `process_nuts3_climatology`), which accepts any variable from `CHELSA_VARIABLE_UNITS` instead of being fixed to `tas`. The `_temperature` functions above are unchanged and now call the same underlying generic processing core with `variable="tas"`.
 
 ---
 
