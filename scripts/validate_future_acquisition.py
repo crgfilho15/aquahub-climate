@@ -5,17 +5,26 @@ real CHELSA server.
 This must be run locally, with normal internet access — the cloud
 session that built this scaffold could not reach
 os.zhdk.cloud.switch.ch or os.unil.cloud.switch.ch (see docs/03,
-section 3; docs/04, Phase 2). The URL/path pattern below was corrected
-in Sept 2026 from a real directory listing (browsed manually via
-envicloud.wsl.ch) after the original guessed URL 404'd, so the path
-itself is now trusted. What is NOT yet confirmed is whether
-load_chelsa_future_monthly_subset's data-format assumptions (data
-variable name, whether the GeoTIFF's scale/offset is auto-decoded by
-the "rasterio" xarray backend) are correct — that is what this script
-checks. It now runs the same check against the historical loader too,
-since that loader was switched to the same GeoTIFF/rasterio code path
-and shares the same open question (previously it was untested in a
-different way: NetCDF/h5netcdf, never verified against a live file).
+section 3; docs/04, Phase 2). Two rounds of real-world feedback already
+fixed this scaffold:
+
+1. The original guessed URL (wrong host/path) 404'd on a real request.
+   Fixed from a real directory listing browsed manually via
+   envicloud.wsl.ch — both loaders now point at the confirmed host/path
+   and read GeoTIFF (not NetCDF).
+2. That first fix then failed with a KeyError ('lon' is not a valid
+   dimension...), because xarray's engine="rasterio" backend actually
+   names dims "band"/"x"/"y" (y descending), not "lat"/"lon". Fixed by
+   normalizing dims in _open_and_subset_chelsa_geotiff. That same local
+   investigation (a synthetic GeoTIFF built with CHELSA's real int16 +
+   scale=0.1 convention) also showed this backend auto-decodes the
+   scale/offset into physical units — so neither loader multiplies by
+   CHELSA_SCALE_FACTOR anymore.
+
+This run is the final confirmation that the real CHELSA server behaves
+the same way the local synthetic test predicted (dims, decoding,
+plausible value ranges) — not a search for which of several
+possibilities is true anymore.
 
 Usage
 -----
@@ -159,23 +168,19 @@ def main() -> int:
 
     print()
     print("Send me this whole output (both steps). What to look for, if the")
-    print("variable is tas/tasmin/tasmax:")
-    print("  - Historical step values roughly 25-30 (already Celsius-ish after")
-    print("    x0.1) or ~250-300 before the loader's x0.1 multiply => the")
-    print("    unconditional CHELSA_SCALE_FACTOR multiply in")
-    print("    load_chelsa_monthly_subset is correct as-is.")
-    print("  - Historical step values roughly ~2500-3000 (i.e. x0.1 made it")
-    print("    10x too small) => rasterio/rioxarray already auto-decoded the")
-    print("    scale/offset, so the manual x0.1 in load_chelsa_monthly_subset")
-    print("    is double-applying it and must be removed.")
-    print("  - Future step values roughly 250-300 => looks like Kelvin")
-    print("    already, load_chelsa_future_monthly_subset's decision not to")
-    print("    multiply by CHELSA_SCALE_FACTOR is correct as-is.")
-    print("  - Future step values roughly 2500-3000 => the scale factor (0.1)")
-    print("    was NOT auto-applied; load_chelsa_future_monthly_subset needs")
-    print("    to multiply by CHELSA_SCALE_FACTOR too.")
+    print("variable is tas/tasmin/tasmax (both loaders now expect the same")
+    print("range, since neither re-applies CHELSA_SCALE_FACTOR - it's")
+    print("auto-decoded by the rasterio backend):")
+    print("  - Values roughly 250-300 (Kelvin) => matches expectations,")
+    print("    Phase 2 is fully confirmed.")
+    print("  - Values roughly 2500-3000 => the real server did NOT")
+    print("    auto-decode the scale/offset after all (unlike the local")
+    print("    synthetic test), so CHELSA_SCALE_FACTOR needs to be")
+    print("    multiplied back in for both loaders.")
     print("  - Anything else (e.g. near 0, negative, huge) => the data")
     print("    variable name/band being picked is probably wrong.")
+    print("For pr, values should just look like plausible monthly")
+    print("precipitation totals in mm (no Kelvin range to check against).")
 
     return 0
 

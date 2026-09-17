@@ -144,7 +144,7 @@ locally (same 1981–2010 baseline, same Douro region) and run through
 tests prove the logic is correct, not that the real CHELSA files match
 the expected naming/unit assumptions.
 
-#### Phase 2 — Future data acquisition — 🟡 URL/path confirmed (Sept 2026), scale-factor handling still unverified
+#### Phase 2 — Future data acquisition — 🟡 URL/path and dims/scale-factor fixed (Sept 2026), pending one final real-server confirmation
 
 *Unblocked: the user adopted the Section 3 proposal (monthly CHELSA v2.1,
 5 GCMs) as the working assumption to build against, pending final
@@ -197,18 +197,43 @@ professor sign-off.*
     (`CHELSA_ukesm1-0-ll_r1i1p1f1_w5e5_ssp126_tas_01_2071-2100_
     V.2.1.tif`). Encoded in `CHELSA_FUTURE_GCM_VARIANTS`.
 
-**Explicitly NOT done — do not treat this as validated:**
+**Also fixed, from a second real run (Sept 2026):** after the host/path
+fix above, the user's next run got past the URL but hit
+`KeyError: "'lon' is not a valid dimension or coordinate for Dataset
+with dimensions FrozenMappingWarningOnValuesAccess({'band': 1, 'x':
+43200, 'y': 20880})"`. That real error revealed the actual dims
+`xarray`'s `engine="rasterio"` backend uses for a CHELSA GeoTIFF —
+`band`/`x`/`y`, not `lat`/`lon` as the loaders assumed. Investigated
+locally (no network needed — a synthetic GeoTIFF built with `rasterio`
+using CHELSA's documented convention: raw int16 values, embedded
+`scale=0.1`/`offset=0`) and confirmed:
 
-- **The scale-factor handling is unverified for both loaders.** The
-  historical loader unconditionally multiplies by `CHELSA_SCALE_FACTOR`
-  (0.1); the future loader deliberately does not. Whichever is right
-  depends on whether GDAL/rioxarray's `engine="rasterio"` backend
-  auto-decodes the GeoTIFF's embedded scale/offset — genuinely unknown
-  either way without a real download through this exact code path
-  (`src/climate_processing.py`'s confirmed-good local values went
-  through `exactextract`/GDAL directly, a different code path that,
-  per its own comments, decodes scale/offset automatically — that does
-  not tell us what `xr.open_dataset(..., engine="rasterio")` does).
+- The backend auto-decodes the GeoTIFF's embedded scale/offset into
+  physical units (a raw `2794` came back as `279.4`, matching
+  `exactextract`/GDAL's behaviour for the local pre-downloaded
+  rasters). **Neither loader re-applies `CHELSA_SCALE_FACTOR` anymore**
+  — the historical loader's previous unconditional `× 0.1` was
+  double-applying it and has been removed.
+- `y` is ordered descending (north to south), which matters for
+  `.sel()` slicing direction.
+- The single-band `band` dimension needs squeezing away.
+
+`src/climate_acquisition.py` now has a shared
+`_open_and_subset_chelsa_geotiff` helper (used by both loaders) that
+renames `x`/`y` → `lon`/`lat`, squeezes `band`, and picks the correct
+slice direction from the actual coordinate order. This is a documented,
+general property of the rasterio/GDAL backend (not something specific
+to the one synthetic file tested), so it is trusted to hold for the
+real CHELSA server too.
+
+**Explicitly NOT done — do not treat this as fully validated:**
+
+- **Confirmation against a real download, with the fixes above, is
+  still pending.** The synthetic-raster test proves the *logic* is
+  right; it does not prove CHELSA's real files carry the same embedded
+  scale/offset tags (very likely, given the local pre-downloaded
+  rasters already work this way, but not yet directly observed through
+  this remote code path).
 - Raw future data persistence under `data/raw/future/...` (the
   directory convention already exists in `climate_paths.py`, but no
   download has actually been run to populate it).
@@ -218,22 +243,17 @@ session):** `scripts/validate_future_acquisition.py` now runs both
 loaders — one small, fast download each (Vila Real bbox, one month) —
 printing the requested URLs, success/failure, and (on success) the
 resulting data variable names, value ranges and attrs, with guidance on
-what those values imply about the scale-factor question above. Run it
-locally:
+whether those values match expectations. Run it locally:
 
 ```powershell
 python -m scripts.validate_future_acquisition
 ```
 
-A first attempt at the future loader (against the old, wrong URL) from
-this session's network-blocked sandbox returned a generic
-`FileNotFoundError` through `aiohttp`/`fsspec` — that was **not
-evidence the URL was wrong** on its own (same proxy-level block this
-session always hits). The user then ran the same script from a real
-machine and got a real `FileNotFoundError`, which **was** meaningful —
-that is what led to finding and fixing the correct host/path above by
-browsing the CHELSA server manually. The remaining scale-factor
-question needs one more real run of the (now-fixed) script.
+Two real runs from the user's machine already drove this fix: the
+first got a real `FileNotFoundError` (wrong host/path — fixed by
+browsing the CHELSA server manually), the second got the `KeyError`
+above (wrong dims — fixed as described). One more real run should now
+come back clean on both loaders; if it doesn't, send the exact output.
 
 **Deliverable once validated:** one confirmed future climatology cell
 (e.g. Douro, `tas`, one GCM, SSP3-7.0, 2041–2070), spot-checked against

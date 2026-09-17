@@ -138,41 +138,39 @@ def build_chelsa_climatology_url(
     )
 
 
-def load_chelsa_monthly_subset(
-    variable: str,
-    month: int,
+def _open_and_subset_chelsa_geotiff(
+    url: str,
     bbox: BoundingBox,
-    chunks: dict | None = None,
+    chunks: dict | None,
 ) -> xr.Dataset:
     """
-    Load one CHELSA monthly climatology subset into memory.
+    Open a remote CHELSA GeoTIFF, normalize it to this module's
+    (lat, lon) convention, and return the bounding-box subset,
+    materialized.
 
-    The remote file is opened lazily, spatially subsetted, and only then
-    materialized. CHELSA's 0.1 scale factor is applied exactly once,
-    unconditionally, on the assumption that GDAL/rioxarray's
-    engine="rasterio" backend does not auto-decode the GeoTIFF's
-    embedded scale/offset by default. This has not been confirmed
-    against a real download through this exact code path (the Douro
-    pilot's confirmed-good values came from src/climate_processing.py
-    reading local pre-downloaded rasters through exactextract/GDAL
-    directly, which is a different code path and, per its own
-    comments, applies the scale/offset automatically). Run
-    scripts/validate_future_acquisition.py locally to check whether
-    this assumption holds for this loader too - see the interpretation
-    guidance printed by that script.
+    Confirmed (Sept 2026) against a local synthetic raster built with
+    rasterio to mirror CHELSA's real layout — a real download reported
+    dims {'band': 1, 'x': 43200, 'y': 20880} (see the KeyError this
+    replaced) — that xarray's engine="rasterio" backend:
+      - names dims "band"/"x"/"y", not "lat"/"lon";
+      - orders "y" descending (north to south);
+      - auto-decodes the GeoTIFF's embedded scale/offset into physical
+        units (e.g. a raw int16 2794 with scale=0.1 comes back as
+        279.4), the same way exactextract/GDAL already does for the
+        local rasters src/climate_processing.py reads. Callers must
+        NOT re-apply CHELSA_SCALE_FACTOR to values from this helper.
+    This is a property of the rasterio/GDAL backend itself (standard
+    GeoTIFF scale/offset decoding), not something specific to the one
+    synthetic file tested, so it is trusted to hold for the real
+    CHELSA server too — CHELSA's own documented 0.1 scale factor for
+    temperature variables is exactly what was embedded in the test
+    file.
     """
-
-    bbox.validate()
-
-    url = build_chelsa_climatology_url(
-        variable=variable,
-        month=month,
-    )
 
     if chunks is None:
         chunks = {
-            "lat": 500,
-            "lon": 500,
+            "x": 500,
+            "y": 500,
         }
 
     with fsspec.open(url, mode="rb") as remote_file:
@@ -182,12 +180,61 @@ def load_chelsa_monthly_subset(
             chunks=chunks,
         )
 
+        rename_map = {
+            source: target
+            for source, target in (("x", "lon"), ("y", "lat"))
+            if source in dataset.dims
+        }
+
+        if rename_map:
+            dataset = dataset.rename(rename_map)
+
+        if "band" in dataset.dims:
+            dataset = dataset.squeeze("band", drop=True)
+
+        lat_descending = bool(
+            dataset["lat"].values[0] > dataset["lat"].values[-1]
+        )
+
+        lat_slice = (
+            slice(bbox.ymax, bbox.ymin)
+            if lat_descending
+            else slice(bbox.ymin, bbox.ymax)
+        )
+
         subset = dataset.sel(
             lon=slice(bbox.xmin, bbox.xmax),
-            lat=slice(bbox.ymin, bbox.ymax),
+            lat=lat_slice,
         )
 
         subset = subset.load()
+
+    return subset
+
+
+def load_chelsa_monthly_subset(
+    variable: str,
+    month: int,
+    bbox: BoundingBox,
+    chunks: dict | None = None,
+) -> xr.Dataset:
+    """
+    Load one CHELSA monthly climatology subset into memory.
+
+    The remote file is opened lazily, spatially subsetted, and only
+    then materialized, via _open_and_subset_chelsa_geotiff, which
+    already returns physical units — CHELSA_SCALE_FACTOR is NOT
+    re-applied here (see that helper's docstring for why).
+    """
+
+    bbox.validate()
+
+    url = build_chelsa_climatology_url(
+        variable=variable,
+        month=month,
+    )
+
+    subset = _open_and_subset_chelsa_geotiff(url, bbox, chunks)
 
     data_vars = list(subset.data_vars)
 
@@ -198,16 +245,16 @@ def load_chelsa_monthly_subset(
 
     band = data_vars[0]
 
-    subset[band] = (
-        subset[band] * CHELSA_SCALE_FACTOR
-    )
-
     subset[band].attrs.update(
         {
             "source": "CHELSA climatologies v2.1",
             "period": CHELSA_BASELINE_PERIOD,
             "variable": variable,
-            "scale_factor_applied": CHELSA_SCALE_FACTOR,
+            "scale_factor_source": (
+                "auto-decoded by rasterio/GDAL from the GeoTIFF's "
+                "embedded scale/offset metadata "
+                f"(CHELSA_SCALE_FACTOR={CHELSA_SCALE_FACTOR})"
+            ),
         }
     )
 
@@ -309,15 +356,10 @@ def load_chelsa_future_monthly_subset(
     Load one CHELSA v2.1 future monthly climatology subset into memory.
 
     Same remote-subset-then-materialize approach as
-    load_chelsa_monthly_subset, applied to the future GCM/SSP product.
-    Both loaders now read GeoTIFF through the same "rasterio" xarray
-    backend, and both share the same open question: whether that
-    backend auto-decodes the GeoTIFF's embedded scale/offset. Unlike
-    the historical loader, this one does NOT multiply by
-    CHELSA_SCALE_FACTOR, on the (equally unconfirmed) opposite
-    assumption. Run scripts/validate_future_acquisition.py locally
-    against a real file and compare the printed min/max/mean against
-    its interpretation guidance to resolve this for both loaders.
+    load_chelsa_monthly_subset, applied to the future GCM/SSP product,
+    via the same _open_and_subset_chelsa_geotiff helper — see its
+    docstring for why CHELSA_SCALE_FACTOR is not re-applied here
+    either.
     """
 
     bbox.validate()
@@ -330,25 +372,7 @@ def load_chelsa_future_monthly_subset(
         period=period,
     )
 
-    if chunks is None:
-        chunks = {
-            "lat": 500,
-            "lon": 500,
-        }
-
-    with fsspec.open(url, mode="rb") as remote_file:
-        dataset = xr.open_dataset(
-            remote_file,
-            engine="rasterio",
-            chunks=chunks,
-        )
-
-        subset = dataset.sel(
-            lon=slice(bbox.xmin, bbox.xmax),
-            lat=slice(bbox.ymin, bbox.ymax),
-        )
-
-        subset = subset.load()
+    subset = _open_and_subset_chelsa_geotiff(url, bbox, chunks)
 
     data_vars = list(subset.data_vars)
 
