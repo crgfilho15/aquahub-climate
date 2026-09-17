@@ -378,15 +378,39 @@ real, not just against synthetic fixtures.
 `tas`, all 5 GCMs, ssp585, 2041-2070), plausible values with the right
 geographic pattern.
 
-#### Phase 4 — Ensemble and uncertainty
+#### Phase 4 — Ensemble and uncertainty — ✅ done (Sept 2026)
 
-*Depends on Phase 3.*
+*Depends on Phase 3, which is now done.*
 
-- Implement `ensemble.method = "equal_weight_mean"` and the
-  `min`/`max`/`std` uncertainty metrics already declared in `climate.toml`.
-- Unit-test against a synthetic multi-GCM fixture (same pattern as the
-  existing synthetic-raster tests), so this doesn't require real GCM data
-  to validate the arithmetic.
+- `src/climate_ensemble.py` (new): `calculate_ensemble_climatology`
+  aggregates Phase 3's per-GCM rows into one row per municipality/
+  month/variable/scenario/period, implementing
+  `config/climate.toml`'s `[ensemble].method = "equal_weight_mean"`
+  and the `min`/`max`/`std` uncertainty metrics. Scenario and period
+  are deliberately kept as separate groups, never averaged together —
+  the two-scenario bracket (docs/04 Section 3) exists specifically to
+  show conservative vs. extreme as distinct outcomes.
+- Unsupported `ensemble.method` or `uncertainty_metrics` values raise
+  a clear error instead of silently producing a wrong/partial result —
+  same defensive pattern as `CHELSA_VARIABLE_UNITS` in Phase 1.
+- `scripts/build_ensemble_climatology.py` (new): takes a Phase 3 CSV
+  (`scripts/build_future_climatology.py`'s output) and writes the
+  ensemble result to `data/processed/ensemble/`. Smoke-tested against
+  a small CSV built from the user's real Phase 3 sample values
+  (Alijó, January, ssp585/2041-2070 across all 5 GCMs) — ensemble mean
+  7.53 °C, range 6.75–8.25 °C, std 0.59 °C, all plausible.
+- `tests/test_climate_ensemble.py` (new, 8 tests, synthetic fixture
+  only — no real GCM data needed): basic mean/min/max/std arithmetic,
+  a zero-spread case, scenarios and municipalities correctly kept
+  separate rather than blended, only the requested uncertainty metrics
+  appear as columns, and the three configuration-error cases (bad
+  method, bad metric, missing column).
+
+**Deliverable:** ✅ done — run
+`python -m scripts.build_ensemble_climatology <path to a Phase 3 CSV>`
+once real Phase 3 data is available (the partial ssp585/2041-2070 CSV
+already works; re-run once the full sweep finishes for the complete
+picture).
 
 #### Phase 5 — Climate-change anomalies
 
