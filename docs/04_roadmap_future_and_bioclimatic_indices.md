@@ -285,7 +285,7 @@ fixes → clean success with plausible, metadata-consistent values.
 bbox, `tas`, MRI-ESM2-0, SSP3-7.0, 2041–2070), spot-checked against
 plausible values for the region — done above.
 
-#### Phase 3 — Multi-GCM processing — 🟡 built (Sept 2026), real acquisition run pending
+#### Phase 3 — Multi-GCM processing — ✅ confirmed against real data for one scenario/period (Sept 2026), full sweep pending
 
 *Depended on Phase 2, which is now done.*
 
@@ -345,15 +345,26 @@ to the full run.
   skip-if-exists logic actually works, not just that it's present in
   the code.
 
+**Confirmed against real data (Sept 2026):** the user ran
+`scripts/build_future_climatology.py --scenario ssp585 --period 2041-2070`
+(the narrow first slice — 5 GCMs × 12 months = 60 real downloads) and
+it completed cleanly: `Wrote 1140 rows (5 GCMs x 1 scenarios x 1
+periods x 12 months x 19 municipalities)`, exactly matching the
+expected row count (5 × 12 × 19). Sample values (GFDL-ESM4, January)
+range 6.4–8.2 °C across Douro's municipalities, with the right spatial
+pattern — higher/more interior municipalities (Penedono, Sernancelhe)
+colder than lower-elevation ones near the river (Mesão Frio, Peso da
+Régua), consistent with the region's real orography. This confirms the
+full acquisition → persistence → zonal-statistics chain end to end for
+real, not just against synthetic fixtures.
+
 **Explicitly NOT done:**
 
-- **The actual 360-download real run hasn't happened yet.** Everything
-  above is proven against synthetic/mocked data (fast, free, no
-  network) plus one focused real-loader-shape check (the
-  `MissingSpatialDimensionError` catch); running
-  `scripts/build_future_climatology.py` for real, on the user's
-  machine, is the next step — the same "build against synthetic data
-  first, then confirm for real" pattern as Phase 2.
+- **The full 360-download sweep** (both scenarios × all 3 periods,
+  instead of just the one ssp585/2041-2070 slice confirmed above)
+  hasn't run yet. `scripts/build_future_climatology.py` with no
+  `--scenario`/`--period` flags does this; already-downloaded months
+  are reused, so re-running now only fetches the remaining ~300.
 - Variables beyond `tas` (`tasmin`, `tasmax`, `pr`) — the code is
   already generic per-variable (same `CHELSA_VARIABLE_UNITS` core as
   Phase 1), so this is a scope expansion via the script's `--variable`
@@ -363,10 +374,9 @@ to the full run.
   `resolve_selection_bounding_box`), so Beira Interior's multi-NUTS3
   combination (Phase 10) is not yet wired into this future-data path.
 
-**Deliverable:** run `scripts/build_future_climatology.py` locally (start
-with a narrow `--scenario ssp585 --period 2041-2070` slice to validate
-before the full run) and confirm the resulting CSV has plausible values
-across GCMs/months for Douro.
+**Deliverable:** ✅ done above — one confirmed real result set (Douro,
+`tas`, all 5 GCMs, ssp585, 2041-2070), plausible values with the right
+geographic pattern.
 
 #### Phase 4 — Ensemble and uncertainty
 

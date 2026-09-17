@@ -98,6 +98,12 @@ def calculate_future_monthly_climatology_for_gcm(
     calculate_monthly_climatology_for_regions's shape, with added
     gcm/scenario/period columns identifying this result among the
     many the full Phase 3 loop produces.
+
+    Prints one line per GCM as it goes (this loops real, potentially
+    slow network downloads, so silent operation would leave the caller
+    unable to tell progress from a hang): each month number printed
+    bare means it was downloaded just now; a trailing "*" means it was
+    already persisted locally and was reused instead.
     """
 
     selection = FutureClimateSelection(
@@ -121,6 +127,8 @@ def calculate_future_monthly_climatology_for_gcm(
         nuts3_name=region_name,
     )
 
+    print(f"  {gcm}:", end=" ", flush=True)
+
     monthly_results = []
 
     for month in range(1, 13):
@@ -131,6 +139,8 @@ def calculate_future_monthly_climatology_for_gcm(
         )
 
         if force_download or not raster_path.exists():
+
+            print(f"{month:02d}", end="", flush=True)
 
             monthly_dataset = load_future_month_for_experiment(
                 experiment=experiment,
@@ -147,6 +157,11 @@ def calculate_future_monthly_climatology_for_gcm(
                 month=month,
             )
 
+        else:
+            print(f"{month:02d}*", end="", flush=True)
+
+        print(" ", end="", flush=True)
+
         month_result = calculate_monthly_value_for_regions(
             raster_path=raster_path,
             regions_gdf=region_municipalities,
@@ -155,6 +170,8 @@ def calculate_future_monthly_climatology_for_gcm(
         )
 
         monthly_results.append(month_result)
+
+    print("done")
 
     monthly_output = pd.concat(
         monthly_results,
