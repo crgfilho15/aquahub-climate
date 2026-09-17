@@ -3,13 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AquaHub Climate — Piloto Douro</title>
+  <title>AquaHub Climate — Piloto</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header id="banner">
-    <h1>AquaHub Climate — Piloto Douro</h1>
+    <div id="banner-heading">
+      <h1>AquaHub Climate — Piloto</h1>
+      <label id="region-select-wrapper">
+        Região:
+        <select id="region-select" disabled>
+          <option value="">a carregar...</option>
+        </select>
+      </label>
+    </div>
     <p id="banner-subtitle">a carregar metadados...</p>
     <p id="banner-warning" class="pilot-warning" hidden></p>
   </header>

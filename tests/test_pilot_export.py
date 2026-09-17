@@ -130,6 +130,7 @@ def test_build_pilot_feature_collection_missing_month():
 
 def test_build_pilot_metadata_fields():
     metadata = build_pilot_metadata(
+        region_slug="douro",
         region_type="NUTS3",
         region_name="Douro",
         variable="tas",
@@ -138,6 +139,7 @@ def test_build_pilot_metadata_fields():
         methodology_status="provisional",
     )
 
+    assert metadata["slug"] == "douro"
     assert metadata["region_name"] == "Douro"
     assert metadata["future_scenarios_included"] is False
     assert "generated_at" in metadata
@@ -151,6 +153,7 @@ def test_save_pilot_artifacts_writes_files(tmp_path):
     )
 
     metadata = build_pilot_metadata(
+        region_slug="douro",
         region_type="NUTS3",
         region_name="Douro",
         variable="tas",

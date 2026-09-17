@@ -51,36 +51,88 @@ future dataset is chosen.
 
 In priority order (blocks the most downstream work first):
 
-| # | Decision | Why it blocks engineering | Where it's already framed |
+| # | Decision | Why it blocks engineering | Status |
 |---|---|---|---|
-| 1 | **Daily vs. monthly future data.** Is the intended future dataset CHELSA-ISIMIP3b (daily, used by MONTEVITIS) or the CHELSA v2.1 future climatologies (monthly)? | Frost days, GDD, chilling hours and most bioclimatic indices need daily data. Building the acquisition layer against the wrong product means rebuilding it. | `docs/02` §4; flagged explicitly in the architecture discussion before this platform was built |
-| 2 | **GCM set.** The 5 GCMs standardised by CHELSA v2.1, or the 9 used by MONTEVITIS (CHELSA-ISIMIP3b)? | Directly tied to decision 1 — these may be different underlying products, not just a longer list. Determines storage/compute scope (~2x). | `docs/02` §7 |
-| 3 | **Confirm SSPs and periods** (SSP1-2.6/3-7.0/5-8.5; 2011–2040/2041–2070/2071–2100) | Already provisional in `climate.toml`; low risk, but should be explicitly signed off before large downloads | `docs/02` §5–6 |
-| 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase F/G below; requires literature review + agronomist validation, not just a research team's yes/no | `docs/02` §11–12 |
-| 5 | **Scope confirmation:** does the researcher's responsibility include the socioeconomic diagnosis, and which territory (Douro only vs. all four regions) for this stage | Lower engineering impact, but affects prioritisation | `docs/02` §1 |
+| 1 | **Daily vs. monthly future data.** Is the intended future dataset CHELSA-ISIMIP3b (daily, used by MONTEVITIS) or the CHELSA v2.1 future climatologies (monthly)? | Frost days, GDD, chilling hours and most bioclimatic indices need daily data. Building the acquisition layer against the wrong product means rebuilding it. | **Proposal drafted (Sept 2026): monthly.** Recorded in `config/climate.toml` `[future]` (`temporal_resolution = "monthly"`, `dataset = "CHELSA-climatologies-v2.1-CMIP6"`), explicitly marked as pending professor confirmation. Rationale and the frost/chilling trade-off this implies are in Section 3 below. See `docs/02` §4. |
+| 2 | **GCM set.** The 5 GCMs standardised by CHELSA v2.1, or the 9 used by MONTEVITIS (CHELSA-ISIMIP3b)? | Directly tied to decision 1 — these may be different underlying products, not just a longer list. Determines storage/compute scope (~2x). | **Proposal drafted (Sept 2026): the 5 CHELSA v2.1 GCMs** (GFDL-ESM4, IPSL-CM6A-LR, MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL), consistent with decision 1. Recorded in `config/climate.toml` `[models].gcms`, pending confirmation. See `docs/02` §7. |
+| 3 | **Confirm SSPs and periods** (SSP1-2.6/3-7.0/5-8.5; 2011–2040/2041–2070/2071–2100) | Already provisional in `climate.toml`; low risk, but should be explicitly signed off before large downloads | Unchanged from the original proposal — still pending sign-off. See `docs/02` §5–6. |
+| 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase F/G below; requires literature review + agronomist validation, not just a research team's yes/no | Not started. See `docs/02` §11–12. |
+| 5 | **Scope confirmation:** does the researcher's responsibility include the socioeconomic diagnosis, and which territory (Douro only vs. all four regions) for this stage | Lower engineering impact, but affects prioritisation | Partially resolved in conversation: Douro is the pilot, architecture built to extend afterwards (see Phase 10). Socioeconomic-diagnosis scope: still open. |
 
-**Recommended action:** take decisions 1–3 to the professor first, as a single question ("which exact CHELSA product, which GCMs") — they gate everything in Phase 2 onward below. Decision 4 can start in parallel as a literature-review task (see Phase F).
+**Recommended action:** decisions 1–3 now have a concrete drafted proposal (Section 3) ready to take to the professor as a single package — present it as a proposal, not a fait accompli. Decision 4 can start in parallel as a literature-review task (see Phase 7).
 
 ---
 
-### 3. Track B — engineering roadmap
+### 3. Recommended proposal: monthly CHELSA v2.1, 5 GCMs
 
-#### Phase 1 — Generalise the pipeline beyond `tas`
+This is what to present to the professor for decisions 1–2 above.
 
-*Can start immediately; blocks nothing else; blocked by nothing.*
+**Proposal:** use the official CHELSA v2.1 future climatologies (monthly,
+same ~1km downscaling methodology as the historical baseline already
+validated) with its 5 standardised GCMs — GFDL-ESM4, IPSL-CM6A-LR,
+MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL.
 
-- Refactor `climate_processing.py` to accept `variable` as a parameter
-  instead of hardcoding `tas` in the raster filename and in the two
-  `variable =` assignments.
-- Extend `climate_pipeline.py`'s municipality/region/NUTS3 functions to
-  pass `variable` through.
-- Validate against the already-downloaded historical CHELSA rasters for
-  `tasmin`, `tasmax`, `pr` (same 1981–2010 baseline, same Douro region —
-  reuses the already-proven zonal-statistics logic, just parametrised).
-- Update `docs/01` and tests accordingly.
+**Why:**
 
-**Deliverable:** Douro historical climatology for `tas`, `tasmin`, `tasmax`,
-`pr`, with the same validation rigour as the existing `tas` baseline.
+- It is the official, already-downscaled-to-1km CHELSA product, from the
+  same group and methodology as the historical baseline — scientific
+  continuity, no need to build a separate downscaling step.
+- 5 GCMs × 3 SSPs × 3 periods × monthly is a much smaller acquisition and
+  compute footprint than 9 GCMs × daily (the MONTEVITIS/CHELSA-ISIMIP3b
+  approach) — faster to implement, test and defend.
+- The acquisition scaffold already built (`climate_acquisition.py`)
+  targets the CHELSA climatology-style endpoint, which matches this
+  product's format.
+
+**The trade-off, to state explicitly rather than leave implicit:**
+monthly data cannot directly support frost-day counts, extreme-heat-day
+counts, or precise chilling-hour models — those need daily minimum/
+maximum temperatures. GDD, the Winkler Index, the Huglin Index and the
+Branas Hydrothermal Index all have accepted monthly-data formulations in
+the literature, so this proposal does not block the core viticulture
+indices; it specifically blocks the frost/chilling-sensitive indices
+relevant to oliveira, amendoeira and cerejeira (Phase 7).
+
+**Why this doesn't paint the project into a corner:** `climate_selection.py`
+and `climate_acquisition.py` already treat the dataset as a configuration
+value, not something hardcoded into the pipeline shape. Adding a second,
+daily source later (e.g. CHELSA-ISIMIP3b, scoped only to the specific
+variables/indices that need it) is an additive extension, not a rewrite
+of what Phases 2–5 will build on this proposal.
+
+---
+
+### 4. Track B — engineering roadmap
+
+#### Phase 1 — Generalise the pipeline beyond `tas` — ✅ done (Sept 2026)
+
+*Could start immediately; blocked nothing else; blocked by nothing.*
+
+- `climate_processing.py` now has a generic, variable-parameterised core
+  (`calculate_monthly_value_for_regions`, `calculate_monthly_climatology_for_regions`,
+  `calculate_annual_climatology_for_regions`, `process_climatology_for_regions`),
+  registered per-variable in `CHELSA_VARIABLE_UNITS` (`tas`, `tasmin`,
+  `tasmax`, `pr` today; an unsupported variable raises a clear error
+  rather than silently applying the wrong unit conversion).
+- `climate_pipeline.py` got generic counterparts
+  (`process_municipality_climatology`,
+  `process_multiple_municipalities_climatology`,
+  `process_nuts3_climatology`) alongside the original `_temperature`
+  functions, which are now thin wrappers over the same generic core —
+  unchanged signatures, unchanged behaviour, no breakage to the
+  notebook, the pilot export pipeline, or existing tests.
+- `data_io.py` already accepted `variable` as a parameter and needed no
+  changes.
+- Covered by new tests proving the unit-conversion logic is actually
+  correct per variable (temperature converts Kelvin → Celsius;
+  precipitation does not), not just that the code runs.
+
+**Remaining before this is validated against real data:** the historical
+CHELSA rasters for `tasmin`, `tasmax`, `pr` still need to be downloaded
+locally (same 1981–2010 baseline, same Douro region) and run through
+`process_nuts3_climatology(..., variable="tasmin")` etc. — the synthetic
+tests prove the logic is correct, not that the real CHELSA files match
+the expected naming/unit assumptions.
 
 #### Phase 2 — Future data acquisition
 
@@ -178,19 +230,64 @@ one layer at a time, rather than as one big-bang release.*
   view, index layers, zoning layer.
 - Each addition should ship independently (e.g. "add tasmin/tasmax to the
   map" doesn't need to wait for indices to be ready).
+- The **region** axis of this is already done (Phase 10, below) — the
+  platform now has a working selector pattern (`GET /api/pilot` listing
+  built regions, a dropdown that reloads the map/panel/legend on
+  change). The same pattern is the template for the variable/period/SSP
+  selectors this phase still needs to add.
 
-#### Phase 10 — Scale beyond Douro
+#### Phase 10 — Scale beyond Douro — 🟡 infrastructure done (Sept 2026), Beira Interior data pending
 
-*Independent track, can run in parallel once Phase 1 is stable.*
+*Independent track, ran in parallel once Phase 1 was stable.*
 
-- Beira Interior: same CAOP source, should mostly be a `region_name` config
-  change plus re-running the pipeline.
+**Done:**
+
+- `get_municipalities_by_nuts3_list` (`src/boundary_processing.py`) and
+  `process_multi_nuts3_climatology` (`src/climate_pipeline.py`): a
+  region can now be one or more combined NUTS III units, not just one —
+  needed because AquaHub intervention areas (e.g. "Beira Interior") are
+  project-defined, not guaranteed to match a single official NUTS III
+  name.
+- `config/climate.toml`'s `[pilot_platform]` restructured into a
+  `[[pilot_platform.regions]]` list (slug + label + `nuts3_names`),
+  replacing the single hardcoded Douro region.
+- `scripts/build_pilot_douro.py` replaced by
+  `scripts/build_pilot_region.py`, which builds every configured region
+  (or one, via `--region <slug>`) instead of only Douro.
+- `api/main.py` generalised: region slugs are validated against
+  `climate.toml`'s configured list (an allow-list, closing what would
+  otherwise be a path-construction risk from an arbitrary path
+  parameter) rather than a single hardcoded slug; a new
+  `GET /api/pilot` lists regions that are both configured and actually
+  built.
+- `web/` got a region `<select>`, wired to `GET /api/pilot`; switching
+  regions reloads the map layer, legend and banner without a page
+  reload. Verified with two synthetic regions carrying different data
+  (different temperature ranges, different municipality sets) to prove
+  the switch actually changes what's displayed, not just the label.
+- Covered by new tests in `test_boundary_processing.py`,
+  `test_climate_pipeline.py` and `test_pilot_api.py` (unconfigured
+  region → 404 via the allow-list; configured-but-unbuilt region → the
+  build-hint 404; region listing only includes built regions).
+
+**Still pending — a real-world fact this session cannot verify:**
+Beira Interior is registered in `climate.toml` with `nuts3_names = []`.
+"Beira Interior" is the AquaHub project's name for an intervention area,
+not confirmed to be a literal value in CAOP2025's `nuts3` column — it
+may be a combination of units (e.g. Beira Interior Norte, Beira Interior
+Sul, Cova da Beira under the older NUTS III classification), or CAOP2025
+may already use Portugal's revised NUTS III classification with
+different names entirely. `docs/03` Section 7 has the one-liner to run
+locally against the real CAOP file to find the exact value(s) — once
+that's filled in, `python -m scripts.build_pilot_region --region
+beira-interior` builds it with no further code changes.
+
 - Castilla y León / Extremadura: needs a Spanish administrative-boundary
   source (not yet identified) before the same pipeline can run there.
 
 ---
 
-### 4. Suggested execution order
+### 5. Suggested execution order
 
 ```text
 Track A (professor) ──────────────────────────────────────────┐

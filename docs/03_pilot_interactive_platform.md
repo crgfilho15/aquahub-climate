@@ -1,29 +1,35 @@
 # AquaHub Climate Platform
 
-## Interactive Pilot Platform — Douro (v1)
+## Interactive Pilot Platform (v1 — historical baseline, multi-region)
 
 ### 1. Purpose and scope
 
 This is the first interactive deliverable of the AquaHub climate atlas: a
-map-based platform for the Douro NUTS III region, built on top of the
-already-validated baseline climatology pipeline (see
-`docs/01_climate_baseline_methodology.md`).
+map-based platform, built on top of the already-validated baseline
+climatology pipeline (see `docs/01_climate_baseline_methodology.md`). It
+started as a Douro-only pilot and was generalised (September 2026,
+roadmap Phase 10) to support any number of regions, each selectable from
+a dropdown in the UI.
 
 **Scope of this v1 is deliberately limited:**
 
-- Region: Douro NUTS III (19 municipalities) only. The architecture is
-  built to extend to Beira Interior, Castilla y León and Extremadura once
-  the Douro pilot is validated, but no other region is wired up yet.
+- Regions: driven by `config/climate.toml`'s `[[pilot_platform.regions]]`
+  list. Douro (19 municipalities) is fully configured and validated
+  against real CHELSA/CAOP data. Beira Interior is registered as a
+  placeholder — see Section 7 for why it isn't built yet. Castilla y León
+  and Extremadura are not wired up: they need a Spanish
+  administrative-boundary source, which does not exist in this codebase
+  yet.
 - Content: the validated historical baseline only —
   `tas` (mean near-surface air temperature), CHELSA climatologies v2.1,
   1981–2010.
 - **Future climate scenarios (SSP/GCM) are intentionally not included.**
-  The future dataset, GCM set and required temporal resolution
-  (monthly vs daily, needed for frost/GDD indices) are still open
-  questions for the research team — see
-  `docs/02_methodological_questions_for_team.md`. The platform's banner
-  displays this limitation explicitly so it is never mistaken for a
-  finished product.
+  A concrete proposal now exists (monthly CHELSA v2.1 future
+  climatologies, the 5 standard GCMs — see `config/climate.toml`
+  `[future]`/`[models]` and `docs/04`), but it is **not yet confirmed by
+  the research team**, so it is not implemented in this platform. The
+  platform's banner displays this limitation explicitly so it is never
+  mistaken for a finished product.
 
 This is a scope decision, not an oversight: shipping a working historical
 pilot now is more useful than blocking on unresolved future-scenario
@@ -77,16 +83,19 @@ of that specific session's network policy, not of the code.
 data/raw/boundaries/Continente_CAOP2025.gpkg
 data/raw/chelsa/CHELSA_tas_MM_1981-2010_V.2.1.tif  (x12)
         │
-        │  scripts/build_pilot_douro.py
-        │  (reuses src/climate_pipeline.process_nuts3_temperature,
-        │   already validated — see docs/01)
+        │  scripts/build_pilot_region.py [--region <slug>]
+        │  (reuses src/climate_pipeline.process_multi_nuts3_climatology,
+        │   built on the already-validated regional core — see docs/01)
         ▼
-data/processed/pilot/douro_pilot.geojson
-data/processed/pilot/douro_pilot_meta.json
+data/processed/pilot/{slug}_pilot.geojson       (one pair per region)
+data/processed/pilot/{slug}_pilot_meta.json
         │
-        │  api/main.py (FastAPI, static file read, no processing)
+        │  api/main.py (FastAPI; /api/pilot lists built regions,
+        │  /api/pilot/{slug} and /api/pilot/{slug}/meta serve them —
+        │  static file reads, no processing)
         ▼
-web/index.html + web/app.js (Leaflet choropleth + per-municipality panel)
+web/index.html + web/app.js
+(region <select> + Leaflet choropleth + per-municipality panel)
 ```
 
 `data/processed/pilot/` is not versioned in Git (it falls under the
@@ -100,8 +109,9 @@ From the project root, with the virtual environment active and
 `data/raw/` populated as described in `docs/01`:
 
 ```powershell
-# 1. Generate the pilot dataset (reads data/raw, writes data/processed/pilot)
-python -m scripts.build_pilot_douro
+# 1. Generate pilot data for every configured region
+#    (or add --region douro to build just one)
+python -m scripts.build_pilot_region
 
 # 2. Serve the API + frontend
 uvicorn api.main:app --reload
@@ -110,24 +120,30 @@ uvicorn api.main:app --reload
 # http://127.0.0.1:8000
 ```
 
-If step 2 is run before step 1, the API returns a `404` with an explicit
-hint to run the build script first, and the banner in the UI shows the
-same message instead of failing silently.
+The UI's region dropdown is populated from `GET /api/pilot`, which only
+lists regions that are both configured in `climate.toml` and have been
+built — so a configured-but-not-yet-built region (e.g. Beira Interior
+today) simply doesn't appear as an option, rather than showing a broken
+one. If no region has been built yet, the banner says so explicitly with
+the exact command to run.
 
 ---
 
 ### 6. What the platform shows
 
-- A Leaflet map of the 19 Douro municipalities, coloured by
+- A region selector (top-right of the banner), populated from whichever
+  pilot datasets have actually been built.
+- A Leaflet map of the selected region's municipalities, coloured by
   1981–2010 annual mean temperature (`tas`).
 - Clicking a municipality opens a panel with:
   - the municipality name and annual mean temperature;
   - a monthly climatology chart (12 points, drawn as inline SVG, no
-    charting library dependency);
+    charting library dependency) with a hover/keyboard-accessible
+    crosshair tooltip;
   - the dataset source and variable.
-- A banner stating the dataset, variable, period, methodology status
-  (`provisional`, from `config/climate.toml`), and the future-scenario
-  limitation described in Section 1.
+- A banner stating the region, dataset, variable, period, methodology
+  status (`provisional`, from `config/climate.toml`), and the
+  future-scenario limitation described in Section 1.
 
 This intentionally mirrors the "camada científica + camada de
 interação" separation already established in `docs/01` Section 20: the
@@ -139,63 +155,108 @@ it.
 
 ### 7. Configuration
 
-The pilot's region/variable/period are read from `config/climate.toml`,
-section `[pilot_platform]`, kept separate from the existing `[pilot]`
-section (which configures the future-climate experiment scaffold in
+The pilot's shared settings (variable/period/dataset label) and its list
+of regions are read from `config/climate.toml`, section
+`[pilot_platform]`, kept separate from the existing `[pilot]` section
+(which configures the future-climate experiment scaffold in
 `src/future_climate_experiment.py` and is unrelated to this platform).
 
 ```toml
 [pilot_platform]
-region_type = "NUTS3"
-region_name = "Douro"
 variable = "tas"
 period = "1981-2010"
 dataset = "CHELSA climatologies v2.1"
+
+[[pilot_platform.regions]]
+slug = "douro"
+label = "Douro"
+nuts3_names = ["Douro"]
+
+[[pilot_platform.regions]]
+slug = "beira-interior"
+label = "Beira Interior"
+nuts3_names = []   # placeholder — see below
 ```
 
-Changing `region_name` alone is not sufficient to point the pilot at a
-different region yet: `scripts/build_pilot_douro.py` currently assumes
-Douro-shaped municipality data from the Portuguese CAOP layer. Extending
-to Beira Interior (still Portugal/CAOP) should work with only a
-`region_name` change; extending to Castilla y León or Extremadura will
-additionally require a Spanish administrative-boundary source, which is
-not wired up yet.
+Each region is defined by a list of NUTS III names, not a single name,
+because an AquaHub intervention area does not necessarily correspond to
+one official NUTS III unit. "Douro" happens to be both the project's
+area name and a literal value in CAOP2025's `nuts3` column (confirmed
+against real data during Phase 1/pilot validation). "Beira Interior" is
+the project's own term for an intervention area — it is **not confirmed**
+to be a literal NUTS III name in CAOP2025, and may correspond to a
+combination of units (e.g. Beira Interior Norte, Beira Interior Sul,
+Cova da Beira in the older NUTS III classification, or a differently
+named unit if CAOP2025 uses the revised classification).
+
+**To add or fix a region:** run this once, locally, against your real
+CAOP file, to see the exact `nuts3` values available, then fill in
+`nuts3_names` with whichever one(s) correspond to the intervention area:
+
+```python
+import geopandas as gpd
+gdf = gpd.read_file(
+    "data/raw/boundaries/Continente_CAOP2025.gpkg",
+    layer="cont_municipios",
+)
+print(sorted(gdf["nuts3"].unique()))
+```
+
+`get_municipalities_by_nuts3_list` (`src/boundary_processing.py`)
+combines multiple NUTS III names into one region; `--region <slug>` on
+`scripts/build_pilot_region.py` builds just that region once its
+`nuts3_names` is filled in. Castilla y León and Extremadura will
+additionally require a Spanish administrative-boundary source (not part
+of this codebase yet) before the same mechanism can be used for them.
 
 ---
 
 ### 8. Testing
 
+- `tests/test_boundary_processing.py` — covers
+  `get_municipalities_by_nuts3_list`, including combining multiple NUTS
+  III names, case-insensitivity, missing-name errors and de-duplication.
+- `tests/test_climate_pipeline.py` — covers
+  `process_multi_nuts3_climatology`.
 - `tests/test_pilot_export.py` — unit tests for the geometry +
   climatology merge logic, using synthetic GeoDataFrames (no CHELSA/CAOP
   access required).
-- `tests/test_pilot_api.py` — FastAPI endpoint tests using a fixture
-  GeoJSON/metadata pair written to a temporary directory (via the
-  `AQUAHUB_PILOT_DATA_DIR` environment variable), covering both the
-  success path and the "data not generated yet" `404` path.
+- `tests/test_pilot_api.py` — FastAPI endpoint tests using fixture
+  GeoJSON/metadata pairs written to a temporary directory (via the
+  `AQUAHUB_PILOT_DATA_DIR` environment variable), covering: a built
+  region, an unconfigured region slug (rejected by the allow-list before
+  any filesystem access), a configured-but-not-yet-built region (the
+  build-hint path), and the `/api/pilot` region-listing endpoint.
 
-Both suites run without CHELSA, CAOP, or network access, and were
-verified together with the full existing test suite (78 passed, 1
+All suites run without CHELSA, CAOP, or network access, and were
+verified together with the full existing test suite (96 passed, 1
 skipped — the skipped test is the pre-existing opt-in remote CHELSA
-integration check) before this platform was added.
+integration check).
 
 The rendering itself (map, choropleth colouring, click interaction,
-chart) was verified with a temporary synthetic fixture and a headless
-browser during development; that fixture was discarded afterwards and is
-not part of the repository. It does not replace running the pipeline
-against real Douro data locally.
+chart, and — for the multi-region generalisation — actually switching
+the dropdown between two regions with different synthetic data and
+confirming the map/legend/banner all update) was verified with temporary
+synthetic fixtures and a headless browser during development; those
+fixtures were discarded afterwards and are not part of the repository.
+This does not replace running the pipeline against real data locally.
 
 ---
 
 ### 9. Known limitations / next steps
 
 - No future/SSP/GCM layer yet — blocked on the open questions in
-  `docs/02_methodological_questions_for_team.md`.
-- No variables besides `tas` yet (`tasmin`, `tasmax`, `pr` are configured
-  in `climate.toml` but not yet exported by
-  `scripts/build_pilot_douro.py`).
+  `docs/02_methodological_questions_for_team.md`. A concrete proposal
+  (monthly CHELSA v2.1, 5 GCMs) is recorded in `config/climate.toml` and
+  `docs/04`, pending professor confirmation.
+- No variables besides `tas` yet (`tasmin`, `tasmax`, `pr` are supported
+  by the processing pipeline as of Phase 1, but not yet exported by
+  `scripts/build_pilot_region.py` or shown in the UI).
 - No bioclimatic indices or agroclimatic zoning layer yet.
-- Single region (Douro) only; Beira Interior, Castilla y León and
-  Extremadura are not yet wired up (see Section 7).
+- Douro is the only region with real data; Beira Interior is registered
+  but has an empty `nuts3_names` pending confirmation (see Section 7);
+  Castilla y León and Extremadura need a Spanish boundary source that
+  doesn't exist in this codebase yet.
 - No CSV/GeoTIFF export from the UI yet (raised as an open question in
   `docs/02`, item 44).
 - The OpenStreetMap basemap requires internet access at runtime; the

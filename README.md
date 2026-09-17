@@ -23,16 +23,16 @@ The definitive climate datasets and modelling methodology are still under discus
 
 ---
 
-## Interactive pilot platform (Douro, v1)
+## Interactive pilot platform (v1)
 
-A first interactive map platform for the Douro NUTS III region is available, built on the validated baseline climatology pipeline below. It intentionally shows only the historical baseline (`tas`, 1981–2010) — future SSP/GCM scenarios are not yet included, pending methodological confirmation (see `docs/02_methodological_questions_for_team.md`).
+A first interactive map platform is available, built on the validated baseline climatology pipeline below, with a region selector (Douro is fully validated with real data; more regions can be added via `config/climate.toml`). It intentionally shows only the historical baseline (`tas`, 1981–2010) — future SSP/GCM scenarios are not yet included, pending methodological confirmation (a concrete proposal exists — see `docs/04_roadmap_future_and_bioclimatic_indices.md`).
 
 Full details, architecture rationale and known limitations: `docs/03_pilot_interactive_platform.md`.
 
 Quick start, once `data/raw/` is populated as described below:
 
 ```powershell
-python -m scripts.build_pilot_douro
+python -m scripts.build_pilot_region
 uvicorn api.main:app --reload
 # open http://127.0.0.1:8000
 ```
@@ -127,7 +127,8 @@ aquahub-climate/
 ├── docs/
 │   ├── 01_climate_baseline_methodology.md
 │   ├── 02_methodological_questions_for_team.md
-│   └── 03_pilot_interactive_platform.md
+│   ├── 03_pilot_interactive_platform.md
+│   └── 04_roadmap_future_and_bioclimatic_indices.md
 │
 ├── notebooks/
 │   └── 01_chelsa_exploration.ipynb
@@ -137,7 +138,7 @@ aquahub-climate/
 │   └── tables/
 │
 ├── scripts/
-│   └── build_pilot_douro.py
+│   └── build_pilot_region.py
 │
 ├── src/
 │   ├── boundary_processing.py
@@ -712,7 +713,7 @@ pytest -v
 Current test status:
 
 ```text
-78 passed, 1 skipped
+96 passed, 1 skipped
 ```
 
 The skipped test is the pre-existing opt-in remote CHELSA integration check (`AQUAHUB_RUN_REMOTE_TESTS=1`), which requires live network access.
@@ -999,7 +1000,7 @@ Short-term technical priorities include:
 12. Define agroclimatic zoning rules.
 13. Preserve high-resolution raster outputs for the scientific atlas.
 14. Expand regional processing beyond the current Portuguese prototype.
-15. Extend the interactive pilot platform (`docs/03_pilot_interactive_platform.md`) beyond Douro and beyond the historical `tas` baseline, once the items above are confirmed.
+15. Extend the interactive pilot platform (`docs/03_pilot_interactive_platform.md`) beyond the historical `tas` baseline, once the items above are confirmed. Region selection (Douro / Beira Interior / ...) is already generalised — see `docs/04_roadmap_future_and_bioclimatic_indices.md` Phase 10.
 
 ---
 
