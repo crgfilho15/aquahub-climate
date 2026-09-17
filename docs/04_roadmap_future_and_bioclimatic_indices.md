@@ -73,26 +73,44 @@ into the pipeline shape).
 
 ---
 
-### 3. Recommended proposal: monthly CHELSA v2.1, 5 GCMs
+### 3. Recommended proposal: monthly CHELSA v2.1, 5 GCMs, 2 SSPs
 
 This is what to present to the professor for decisions 1–2 above.
 
 **Proposal:** use the official CHELSA v2.1 future climatologies (monthly,
 same ~1km downscaling methodology as the historical baseline already
 validated) with its 5 standardised GCMs — GFDL-ESM4, IPSL-CM6A-LR,
-MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL.
+MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL — under 2 SSP scenarios: **SSP1-2.6**
+(low-emissions/conservative) and **SSP5-8.5** (high-emissions/extreme),
+bracketing the plausible range instead of also computing the SSP3-7.0
+middle scenario.
 
 **Why:**
 
 - It is the official, already-downscaled-to-1km CHELSA product, from the
   same group and methodology as the historical baseline — scientific
   continuity, no need to build a separate downscaling step.
-- 5 GCMs × 3 SSPs × 3 periods × monthly is a much smaller acquisition and
+- 5 GCMs × 2 SSPs × 3 periods × monthly is a much smaller acquisition and
   compute footprint than 9 GCMs × daily (the MONTEVITIS/CHELSA-ISIMIP3b
-  approach) — faster to implement, test and defend.
+  approach) or even the full 3-SSP version — faster to implement, test
+  and defend, and the platform can present results as a clear
+  "conservative vs. extreme" bracket rather than three overlapping lines
+  that are harder to read at the municipality scale.
 - The acquisition scaffold already built (`climate_acquisition.py`)
   targets the CHELSA climatology-style endpoint, which matches this
   product's format.
+
+**Update (Sept 2026): revised from 3 SSPs to 2.** The proposal originally
+included SSP3-7.0 as a middle scenario (and Phase 2's real-server
+validation happened to use it, since scenario choice doesn't affect the
+URL/format questions Phase 2 was validating). The user opted for the
+2-scenario bracket instead, ahead of Phase 3 (multi-GCM processing), both
+to cut the acquisition volume by a third and because conservative-vs-
+extreme is what a decision-facing atlas actually needs to show — SSP3-7.0
+can be added later as a strict extension (same config-driven dataset
+handling as any other scenario) if the professor or a reviewer asks for
+it. `config/climate.toml`'s `[future].scenarios` and `[pilot].scenario`
+reflect this.
 
 **The trade-off, to state explicitly rather than leave implicit:**
 monthly data cannot directly support frost-day counts, extreme-heat-day
