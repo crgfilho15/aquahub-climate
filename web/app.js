@@ -3,6 +3,11 @@ const MONTH_LABELS = [
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
 
+const MONTH_NAMES_FULL = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
 const COLOR_STOPS = [
   { t: 0.0, color: [49, 100, 175] },
   { t: 0.5, color: [247, 234, 173] },
@@ -95,6 +100,153 @@ function drawMonthlyChart(svg, monthlyValues) {
       label.setAttribute("text-anchor", "middle");
       label.textContent = MONTH_LABELS[i];
       svg.appendChild(label);
+    }
+  });
+
+  // Crosshair + snapped point, hidden until hover/focus.
+  const crosshair = document.createElementNS(ns, "line");
+  crosshair.setAttribute("y1", padding.top);
+  crosshair.setAttribute("y2", height - padding.bottom);
+  crosshair.setAttribute("stroke", "#9aa3af");
+  crosshair.setAttribute("stroke-width", "1");
+  crosshair.setAttribute("visibility", "hidden");
+  svg.appendChild(crosshair);
+
+  const highlight = document.createElementNS(ns, "circle");
+  highlight.setAttribute("r", "4.5");
+  highlight.setAttribute("fill", "#2f6fb2");
+  highlight.setAttribute("stroke", "#ffffff");
+  highlight.setAttribute("stroke-width", "1.5");
+  highlight.setAttribute("visibility", "hidden");
+  svg.appendChild(highlight);
+
+  // Tooltip: value leads (bold, high-contrast), month label secondary.
+  const tooltipGroup = document.createElementNS(ns, "g");
+  tooltipGroup.setAttribute("visibility", "hidden");
+
+  const tooltipBg = document.createElementNS(ns, "rect");
+  tooltipBg.setAttribute("rx", "3");
+  tooltipBg.setAttribute("fill", "#1c2430");
+  tooltipGroup.appendChild(tooltipBg);
+
+  const tooltipValue = document.createElementNS(ns, "text");
+  tooltipValue.setAttribute("font-size", "11");
+  tooltipValue.setAttribute("font-weight", "700");
+  tooltipValue.setAttribute("fill", "#ffffff");
+  tooltipValue.setAttribute("text-anchor", "middle");
+  tooltipGroup.appendChild(tooltipValue);
+
+  const tooltipLabel = document.createElementNS(ns, "text");
+  tooltipLabel.setAttribute("font-size", "8.5");
+  tooltipLabel.setAttribute("fill", "#c7ccd3");
+  tooltipLabel.setAttribute("text-anchor", "middle");
+  tooltipGroup.appendChild(tooltipLabel);
+
+  svg.appendChild(tooltipGroup);
+
+  // The whole plot area is the hit target, per interaction rules: the
+  // crosshair finds the nearest month, the pointer never has to land
+  // exactly on a point.
+  const hitArea = document.createElementNS(ns, "rect");
+  hitArea.setAttribute("x", padding.left);
+  hitArea.setAttribute("y", padding.top);
+  hitArea.setAttribute("width", plotWidth);
+  hitArea.setAttribute("height", plotHeight);
+  hitArea.setAttribute("fill", "transparent");
+  svg.appendChild(hitArea);
+
+  const updateAt = (monthIndex) => {
+    const clamped = Math.max(
+      0,
+      Math.min(monthlyValues.length - 1, monthIndex)
+    );
+    const px = xFor(clamped);
+    const py = yFor(monthlyValues[clamped]);
+
+    crosshair.setAttribute("x1", px);
+    crosshair.setAttribute("x2", px);
+    crosshair.setAttribute("visibility", "visible");
+
+    highlight.setAttribute("cx", px);
+    highlight.setAttribute("cy", py);
+    highlight.setAttribute("visibility", "visible");
+
+    const valueText = `${monthlyValues[clamped].toFixed(2)} °C`;
+    const labelText = MONTH_NAMES_FULL[clamped];
+
+    tooltipValue.textContent = valueText;
+    tooltipValue.setAttribute("x", 0);
+    tooltipValue.setAttribute("y", 14);
+
+    tooltipLabel.textContent = labelText;
+    tooltipLabel.setAttribute("x", 0);
+    tooltipLabel.setAttribute("y", 25);
+
+    const boxWidth =
+      Math.max(valueText.length, labelText.length) * 6 + 12;
+    const boxHeight = 32;
+
+    tooltipBg.setAttribute("x", -boxWidth / 2);
+    tooltipBg.setAttribute("y", -2);
+    tooltipBg.setAttribute("width", boxWidth);
+    tooltipBg.setAttribute("height", boxHeight);
+
+    // Keep the tooltip inside the chart, flipping below the point
+    // when there is not enough room above it.
+    let tooltipY = py - boxHeight - 6;
+    if (tooltipY < 0) {
+      tooltipY = py + 10;
+    }
+
+    let tooltipX = px;
+    tooltipX = Math.max(boxWidth / 2, Math.min(width - boxWidth / 2, tooltipX));
+
+    tooltipGroup.setAttribute(
+      "transform",
+      `translate(${tooltipX}, ${tooltipY})`
+    );
+    tooltipGroup.setAttribute("visibility", "visible");
+  };
+
+  const hide = () => {
+    crosshair.setAttribute("visibility", "hidden");
+    highlight.setAttribute("visibility", "hidden");
+    tooltipGroup.setAttribute("visibility", "hidden");
+  };
+
+  const nearestMonthForClientX = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * width;
+    const relative = (svgX - padding.left) / plotWidth;
+    return Math.round(relative * (monthlyValues.length - 1));
+  };
+
+  hitArea.addEventListener("pointermove", (event) => {
+    updateAt(nearestMonthForClientX(event.clientX));
+  });
+  hitArea.addEventListener("pointerleave", hide);
+
+  // Keyboard access: arrow keys step through months, matching the
+  // hover experience for non-pointer users.
+  svg.setAttribute("tabindex", "0");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    "Climatologia mensal de temperatura, use as setas para navegar pelos meses"
+  );
+
+  let focusedMonth = 0;
+  svg.addEventListener("focus", () => updateAt(focusedMonth));
+  svg.addEventListener("blur", hide);
+  svg.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowRight") {
+      focusedMonth = Math.min(monthlyValues.length - 1, focusedMonth + 1);
+      updateAt(focusedMonth);
+      event.preventDefault();
+    } else if (event.key === "ArrowLeft") {
+      focusedMonth = Math.max(0, focusedMonth - 1);
+      updateAt(focusedMonth);
+      event.preventDefault();
     }
   });
 }
