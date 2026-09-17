@@ -77,28 +77,41 @@ def test_invalid_bounding_box_raises_error(bbox):
 
 
 def test_load_chelsa_monthly_subset_without_network(monkeypatch):
-    lat = np.array([41.0, 41.5, 42.0])
-    lon = np.array([-8.0, -7.5, -7.0])
+    """
+    The synthetic dataset here mirrors the real shape confirmed
+    locally (Sept 2026) for xr.open_dataset(..., engine="rasterio"):
+    dims (band, y, x), y descending, values already decoded to
+    physical units (GDAL auto-applies the GeoTIFF's embedded scale/
+    offset) — see _open_and_subset_chelsa_geotiff's docstring. This
+    replaced an earlier, unrealistic mock (dims lat/lon directly,
+    raw *10 integer-like values) written before that was confirmed.
+    """
+
+    y = np.array([42.0, 41.5, 41.0])
+    x = np.array([-8.0, -7.5, -7.0])
 
     values = np.array(
         [
-            [2780.0, 2790.0, 2800.0],
-            [2790.0, 2794.0, 2810.0],
-            [2800.0, 2810.0, 2820.0],
+            [
+                [278.0, 279.0, 280.0],
+                [279.0, 279.4, 281.0],
+                [280.0, 281.0, 282.0],
+            ]
         ],
         dtype=np.float32,
     )
 
     synthetic_dataset = xr.Dataset(
         {
-            "Band1": (
-                ("lat", "lon"),
+            "band_data": (
+                ("band", "y", "x"),
                 values,
             ),
         },
         coords={
-            "lat": lat,
-            "lon": lon,
+            "band": [1],
+            "y": y,
+            "x": x,
         },
     )
 
@@ -134,27 +147,26 @@ def test_load_chelsa_monthly_subset_without_network(monkeypatch):
         bbox=bbox,
     )
 
-    assert result["Band1"].shape == (1, 1)
+    assert result["band_data"].shape == (1, 1)
 
-    assert float(result["Band1"].values[0, 0]) == pytest.approx(
+    assert float(result["band_data"].values[0, 0]) == pytest.approx(
         279.4
     )
 
-    assert result["Band1"].attrs["units"] == "K"
+    assert result["band_data"].attrs["units"] == "K"
 
     assert (
-        result["Band1"].attrs["source"]
+        result["band_data"].attrs["source"]
         == "CHELSA climatologies v2.1"
     )
 
     assert (
-        result["Band1"].attrs["period"]
+        result["band_data"].attrs["period"]
         == "1981-2010"
     )
 
-    assert (
-        result["Band1"].attrs["scale_factor_applied"]
-        == 0.1
+    assert result["band_data"].attrs["scale_factor_source"].startswith(
+        "auto-decoded"
     )
 
 
