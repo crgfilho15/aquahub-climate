@@ -285,13 +285,88 @@ fixes → clean success with plausible, metadata-consistent values.
 bbox, `tas`, MRI-ESM2-0, SSP3-7.0, 2041–2070), spot-checked against
 plausible values for the region — done above.
 
-#### Phase 3 — Multi-GCM processing — ⬜ not started, unblocked
+#### Phase 3 — Multi-GCM processing — 🟡 built (Sept 2026), real acquisition run pending
 
 *Depended on Phase 2, which is now done.*
 
-- Loop Phase 2's acquisition over the full confirmed GCM list.
-- Preserve each GCM's result individually (already the intent of
-  `processing.preserve_individual_gcm_results = true` in `climate.toml`).
+**Scope decided for this first pass** (narrower than "everything
+configured", to keep the first real acquisition run's volume
+manageable — see the scenario-bracket decision above): one variable
+(`tas`), the Douro region, all 5 configured GCMs, both configured
+scenarios (`ssp126`, `ssp585`), all 3 periods. That is 5 × 2 × 3 × 12 =
+360 real downloads — narrower scopes (fewer scenarios/periods, via the
+new script's flags) can validate the pipeline faster before committing
+to the full run.
+
+**Done:**
+
+- `src/future_climate_processing.py` (new module):
+  - `calculate_future_monthly_climatology_for_gcm`: downloads (via the
+    already-confirmed Phase 2 loader) and persists each of the 12
+    months for one GCM/scenario/period/variable/region combination,
+    then reuses `calculate_monthly_value_for_regions` — the same
+    generic zonal-statistics core the historical pipeline uses — on
+    each persisted raster, instead of writing a second implementation.
+    Already-persisted months are skipped on a re-run (`force_download`
+    to override), matching `processing.preserve_rasters = true`.
+  - `calculate_future_monthly_climatology_for_all_gcms`: loops the
+    above over every GCM in `config/climate.toml`'s `[models].gcms`,
+    keeping each GCM's result as its own rows (tagged by `gcm`) rather
+    than averaging them — averaging is Phase 4, not this phase.
+  - `persist_future_month_raster`: writes a downloaded month to a
+    local GeoTIFF via `rioxarray`. This caught a real bug during
+    testing: the Phase 2 loader's output uses `lat`/`lon` dims (its
+    own established convention), but `rioxarray`'s `.rio.to_raster()`
+    does not auto-detect those as spatial dims (only `x`/`y`) and
+    raises `MissingSpatialDimensionError` without an explicit
+    `rio.set_spatial_dims(x_dim="lon", y_dim="lat")` first — now
+    handled, and verified end-to-end against the real Phase 2 loader's
+    actual output shape (not just a synthetic test fixture), confirming
+    the round-tripped raster still decodes correctly through
+    `exactextract`/GDAL exactly like the pre-downloaded historical
+    rasters do.
+- `scripts/build_future_climatology.py` (new): the script the user
+  runs locally to perform the real acquisition. Loads CAOP boundaries
+  the same way `scripts/build_pilot_region.py` does, loops configured
+  (or `--scenario`/`--period`-narrowed) scenario × period combinations,
+  and writes one combined CSV to
+  `data/processed/future/{region}_{variable}_future_climatology.csv`.
+  Prints the total combination/download count up front, since this is
+  real network traffic on the user's machine, not something to start
+  blind.
+- Tests (`tests/test_future_climate_processing.py`, all mocked/
+  synthetic, no network): persistence round-trip, one full 12-month ×
+  N-municipality result for one GCM with correct `gcm`/`scenario`/
+  `period` tagging and correct unit conversion (reusing Phase 1's
+  Kelvin→Celsius logic), the multi-GCM loop tagging results correctly
+  per GCM, the "no GCMs configured" guard, and — critically — that a
+  second call with the same selection does **not** re-download
+  (asserts the mocked loader is never called), proving the persistence
+  skip-if-exists logic actually works, not just that it's present in
+  the code.
+
+**Explicitly NOT done:**
+
+- **The actual 360-download real run hasn't happened yet.** Everything
+  above is proven against synthetic/mocked data (fast, free, no
+  network) plus one focused real-loader-shape check (the
+  `MissingSpatialDimensionError` catch); running
+  `scripts/build_future_climatology.py` for real, on the user's
+  machine, is the next step — the same "build against synthetic data
+  first, then confirm for real" pattern as Phase 2.
+- Variables beyond `tas` (`tasmin`, `tasmax`, `pr`) — the code is
+  already generic per-variable (same `CHELSA_VARIABLE_UNITS` core as
+  Phase 1), so this is a scope expansion via the script's `--variable`
+  flag once `tas` is confirmed for real, not new code.
+- Regions beyond Douro — `calculate_future_monthly_climatology_for_gcm`
+  only supports a single NUTS III name today (via
+  `resolve_selection_bounding_box`), so Beira Interior's multi-NUTS3
+  combination (Phase 10) is not yet wired into this future-data path.
+
+**Deliverable:** run `scripts/build_future_climatology.py` locally (start
+with a narrow `--scenario ssp585 --period 2041-2070` slice to validate
+before the full run) and confirm the resulting CSV has plausible values
+across GCMs/months for Douro.
 
 #### Phase 4 — Ensemble and uncertainty
 
