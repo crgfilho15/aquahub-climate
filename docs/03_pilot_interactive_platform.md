@@ -15,9 +15,11 @@ a dropdown in the UI.
 
 - Regions: driven by `config/climate.toml`'s `[[pilot_platform.regions]]`
   list. Douro (19 municipalities) is fully configured and validated
-  against real CHELSA/CAOP data. Beira Interior is registered as a
-  placeholder — see Section 7 for why it isn't built yet. Castilla y León
-  and Extremadura are not wired up: they need a Spanish
+  against real CHELSA/CAOP data. Beira Interior is configured with an
+  *inferred* NUTS III combination (not yet confirmed against the
+  official AquaHub area definition — see Section 7) and has not been
+  built yet (no CHELSA/CAOP data available in this session). Castilla y
+  León and Extremadura are not wired up: they need a Spanish
   administrative-boundary source, which does not exist in this codebase
   yet.
 - Content: the validated historical baseline only —
@@ -175,19 +177,27 @@ nuts3_names = ["Douro"]
 [[pilot_platform.regions]]
 slug = "beira-interior"
 label = "Beira Interior"
-nuts3_names = []   # placeholder — see below
+nuts3_names = ["Beira Baixa", "Beiras e Serra da Estrela"]   # inferred — see below
 ```
 
 Each region is defined by a list of NUTS III names, not a single name,
 because an AquaHub intervention area does not necessarily correspond to
 one official NUTS III unit. "Douro" happens to be both the project's
 area name and a literal value in CAOP2025's `nuts3` column (confirmed
-against real data during Phase 1/pilot validation). "Beira Interior" is
-the project's own term for an intervention area — it is **not confirmed**
-to be a literal NUTS III name in CAOP2025, and may correspond to a
-combination of units (e.g. Beira Interior Norte, Beira Interior Sul,
-Cova da Beira in the older NUTS III classification, or a differently
-named unit if CAOP2025 uses the revised classification).
+against real data during Phase 1/pilot validation).
+
+"Beira Interior" is the project's own term for an intervention area — it
+is **not confirmed** to be a literal NUTS III name. Running the CAOP
+query below (September 2026) confirmed that CAOP2025 uses Portugal's
+**revised (2024) NUTS III classification**, which has no unit literally
+named "Beira Interior": the pre-2024 units "Beira Interior Norte",
+"Beira Interior Sul" and "Cova da Beira" were consolidated into "Beiras e
+Serra da Estrela" and "Beira Baixa". `nuts3_names` above uses that
+combination as the closest correspondence to the historical "Beira
+Interior" area — this is a **geographic inference**, not a confirmed
+match to the AquaHub project's actual intervention boundary, and should
+be checked against the project's own area definition before being
+treated as final.
 
 **To add or fix a region:** run this once, locally, against your real
 CAOP file, to see the exact `nuts3` values available, then fill in
@@ -200,6 +210,18 @@ gdf = gpd.read_file(
     layer="cont_municipios",
 )
 print(sorted(gdf["nuts3"].unique()))
+```
+
+Real output from this project's CAOP2025 file (September 2026):
+
+```text
+['Alentejo Central', 'Alentejo Litoral', 'Algarve', 'Alto Alentejo',
+ 'Alto Minho', 'Alto Tâmega e Barroso', 'Ave', 'Baixo Alentejo',
+ 'Beira Baixa', 'Beiras e Serra da Estrela', 'Cávado', 'Douro',
+ 'Grande Lisboa', 'Lezíria do Tejo', 'Médio Tejo', 'Oeste',
+ 'Península de Setúbal', 'Região de Aveiro', 'Região de Coimbra',
+ 'Região de Leiria', 'Terras de Trás-os-Montes', 'Tâmega e Sousa',
+ 'Viseu Dão Lafões', 'Área Metropolitana do Porto']
 ```
 
 `get_municipalities_by_nuts3_list` (`src/boundary_processing.py`)
@@ -253,10 +275,11 @@ This does not replace running the pipeline against real data locally.
   by the processing pipeline as of Phase 1, but not yet exported by
   `scripts/build_pilot_region.py` or shown in the UI).
 - No bioclimatic indices or agroclimatic zoning layer yet.
-- Douro is the only region with real data; Beira Interior is registered
-  but has an empty `nuts3_names` pending confirmation (see Section 7);
-  Castilla y León and Extremadura need a Spanish boundary source that
-  doesn't exist in this codebase yet.
+- Douro is the only region with real data; Beira Interior has an
+  inferred (not yet officially confirmed) `nuts3_names` and no CHELSA/
+  CAOP data run against it yet (see Section 7); Castilla y León and
+  Extremadura need a Spanish boundary source that doesn't exist in this
+  codebase yet.
 - No CSV/GeoTIFF export from the UI yet (raised as an open question in
   `docs/02`, item 44).
 - The OpenStreetMap basemap requires internet access at runtime; the

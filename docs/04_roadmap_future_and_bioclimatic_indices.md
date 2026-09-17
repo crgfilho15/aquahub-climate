@@ -61,6 +61,16 @@ In priority order (blocks the most downstream work first):
 
 **Recommended action:** decisions 1–3 now have a concrete drafted proposal (Section 3) ready to take to the professor as a single package — present it as a proposal, not a fait accompli. Decision 4 can start in parallel as a literature-review task (see Phase 7).
 
+**Update (Sept 2026):** the user adopted this proposal as the working
+assumption to build Phase 2 against, so engineering could proceed
+without waiting idle for the professor meeting. This does **not** mean
+decisions 1–2 are confirmed — the professor can still redirect them —
+it means the alternative (sit idle until a meeting happens) was judged
+worse than building against a documented, reasoned proposal that is
+cheap to adjust if the professor pushes back (see Section 3's closing
+argument about the dataset being a config value, not something baked
+into the pipeline shape).
+
 ---
 
 ### 3. Recommended proposal: monthly CHELSA v2.1, 5 GCMs
@@ -134,22 +144,59 @@ locally (same 1981–2010 baseline, same Douro region) and run through
 tests prove the logic is correct, not that the real CHELSA files match
 the expected naming/unit assumptions.
 
-#### Phase 2 — Future data acquisition
+#### Phase 2 — Future data acquisition — 🟡 scaffold built (Sept 2026), unverified against real data
 
-*Blocked by Track A decision 1–2 (which product, which GCMs).*
+*Unblocked: the user adopted the Section 3 proposal (monthly CHELSA v2.1,
+5 GCMs) as the working assumption to build against, pending final
+professor sign-off.*
 
-- Write the future-data equivalent of `climate_acquisition.py`'s
-  `load_chelsa_monthly_subset` (or a daily variant, depending on decision 1),
-  parametrised by GCM + SSP + period.
-- Prove it end-to-end with **one** GCM × one SSP × one period × Douro bbox
-  before scaling — this mirrors how the historical pipeline was validated
-  (single municipality first, then NUTS3).
-- Persist raw future data under `data/raw/future/...` following the
-  directory convention already built in `climate_paths.py`.
+**Done:**
 
-**Deliverable:** one validated future climatology cell (e.g. Douro, `tas`,
-one confirmed GCM, SSP3-7.0, 2041–2070), spot-checked against the paper's
-own reported figures where possible.
+- `src/climate_acquisition.py`: `build_chelsa_future_climatology_url` and
+  `load_chelsa_future_monthly_subset`, the future-data equivalents of the
+  already-verified historical `build_chelsa_climatology_url`/
+  `load_chelsa_monthly_subset`, parametrised by variable + GCM + SSP +
+  period. `CHELSA_FUTURE_GCM_SLUGS` maps the 5 configured GCMs to their
+  filename slugs and rejects anything else.
+- `src/future_climate_pipeline.py`: `load_future_month_for_experiment`,
+  the future counterpart to the existing
+  `load_reference_month_for_experiment`, wired through
+  `FutureClimateExperiment`/`FutureClimateSelection` (already built).
+- Tests cover the URL construction and validation logic, and the
+  loader's wiring (bbox → URL → metadata), using a mocked network call
+  — the same pattern used for the historical loader's tests.
+
+**Explicitly NOT done — do not treat this as validated:**
+
+- **The exact remote URL/path has not been confirmed to resolve.** This
+  development session cannot reach `os.zhdk.cloud.switch.ch` (see
+  `docs/03` section 3). The path follows CHELSA's documented directory
+  convention (`period/gcm/scenario/variable/filename.tif`) by inference
+  from the already-verified historical endpoint, not from a live
+  request.
+- **The file format assumption is unverified.** The historical loader
+  reads CHELSA's `ncdf` mirror (NetCDF, variable name `Band1`); the
+  future loader assumes a native GeoTIFF via `engine="rasterio"`
+  (rioxarray), which likely uses a different variable name
+  (`band_data`) and may already apply the scale/offset during read —
+  the future loader deliberately does **not** re-apply
+  `CHELSA_SCALE_FACTOR`, unlike the historical one, because whether
+  GDAL/rioxarray already applied it is unconfirmed either way.
+- Raw future data persistence under `data/raw/future/...` (the
+  directory convention already exists in `climate_paths.py`, but no
+  download has actually been run to populate it).
+
+**Next validation step (needs real network access, i.e. not this
+session):** run `load_future_month_for_experiment` for one real
+GCM × SSP × period × Douro bbox and confirm it: (a) resolves at all,
+(b) returns physically plausible values, (c) the scale/offset handling
+is correct. Fix `build_chelsa_future_climatology_url` and the loader's
+data-variable/scaling assumptions based on what that attempt reveals,
+the same way `tasmin`/`tasmax`/`pr` are pending validation from Phase 1.
+
+**Deliverable once validated:** one confirmed future climatology cell
+(e.g. Douro, `tas`, one GCM, SSP3-7.0, 2041–2070), spot-checked against
+plausible values for the region.
 
 #### Phase 3 — Multi-GCM processing
 
@@ -270,17 +317,19 @@ one layer at a time, rather than as one big-bang release.*
   region → 404 via the allow-list; configured-but-unbuilt region → the
   build-hint 404; region listing only includes built regions).
 
-**Still pending — a real-world fact this session cannot verify:**
-Beira Interior is registered in `climate.toml` with `nuts3_names = []`.
-"Beira Interior" is the AquaHub project's name for an intervention area,
-not confirmed to be a literal value in CAOP2025's `nuts3` column — it
-may be a combination of units (e.g. Beira Interior Norte, Beira Interior
-Sul, Cova da Beira under the older NUTS III classification), or CAOP2025
-may already use Portugal's revised NUTS III classification with
-different names entirely. `docs/03` Section 7 has the one-liner to run
-locally against the real CAOP file to find the exact value(s) — once
-that's filled in, `python -m scripts.build_pilot_region --region
-beira-interior` builds it with no further code changes.
+**Update (Sept 2026):** the real CAOP2025 `nuts3` values were checked
+against this project's actual file. It confirmed CAOP2025 uses
+Portugal's revised (2024) NUTS III classification — there is no unit
+literally named "Beira Interior". `climate.toml` now sets
+`nuts3_names = ["Beira Baixa", "Beiras e Serra da Estrela"]` for
+Beira Interior, the combination that corresponds to the old "Beira
+Interior Norte" + "Beira Interior Sul" + "Cova da Beira" units under
+the classification revision. **This is a geographic inference, not a
+confirmed match to the AquaHub project's official intervention
+boundary** — worth a quick sanity check against the project's own area
+definition before treating it as final. `python -m
+scripts.build_pilot_region --region beira-interior` will build it with
+no further code changes, once CHELSA/CAOP data is available locally.
 
 - Castilla y León / Extremadura: needs a Spanish administrative-boundary
   source (not yet identified) before the same pipeline can run there.

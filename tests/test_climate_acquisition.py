@@ -7,6 +7,8 @@ from src.climate_acquisition import (
     BoundingBox,
     ClimateAcquisitionError,
     build_chelsa_climatology_url,
+    build_chelsa_future_climatology_url,
+    load_chelsa_future_monthly_subset,
     load_chelsa_monthly_subset,
 )
 
@@ -154,3 +156,175 @@ def test_load_chelsa_monthly_subset_without_network(monkeypatch):
         result["Band1"].attrs["scale_factor_applied"]
         == 0.1
     )
+
+
+def test_build_chelsa_future_climatology_url():
+    url = build_chelsa_future_climatology_url(
+        variable="tas",
+        month=4,
+        gcm="MRI-ESM2-0",
+        scenario="ssp370",
+        period="2041-2070",
+    )
+
+    assert url == (
+        "https://os.zhdk.cloud.switch.ch/"
+        "chelsav2/GLOBAL/climatologies/"
+        "2041-2070/mri-esm2-0/ssp370/tas/"
+        "CHELSA_tas_04_2041-2070_mri-esm2-0_ssp370_V.2.1.tif"
+    )
+
+
+def test_future_url_rejects_unsupported_gcm():
+    with pytest.raises(
+        ClimateAcquisitionError,
+        match="not one of the CHELSA v2.1 standard GCMs",
+    ):
+        build_chelsa_future_climatology_url(
+            variable="tas",
+            month=1,
+            gcm="Not-A-Real-GCM",
+            scenario="ssp370",
+            period="2041-2070",
+        )
+
+
+def test_future_url_rejects_invalid_variable():
+    with pytest.raises(ClimateAcquisitionError, match="is not supported"):
+        build_chelsa_future_climatology_url(
+            variable="invalid_var",
+            month=1,
+            gcm="MRI-ESM2-0",
+            scenario="ssp370",
+            period="2041-2070",
+        )
+
+
+def test_future_url_rejects_empty_scenario_or_period():
+    with pytest.raises(ClimateAcquisitionError, match="Scenario cannot be empty"):
+        build_chelsa_future_climatology_url(
+            variable="tas",
+            month=1,
+            gcm="MRI-ESM2-0",
+            scenario="",
+            period="2041-2070",
+        )
+
+    with pytest.raises(ClimateAcquisitionError, match="Period cannot be empty"):
+        build_chelsa_future_climatology_url(
+            variable="tas",
+            month=1,
+            gcm="MRI-ESM2-0",
+            scenario="ssp370",
+            period="",
+        )
+
+
+def test_load_chelsa_future_monthly_subset_without_network(monkeypatch):
+    """
+    Verifies the loader wires bbox validation, URL construction and
+    metadata tagging correctly, without depending on network access or
+    on the still-unverified remote file format/path (see the caveat on
+    build_chelsa_future_climatology_url).
+    """
+
+    lat = np.array([41.0, 41.5, 42.0])
+    lon = np.array([-8.0, -7.5, -7.0])
+
+    values = np.array(
+        [
+            [280.0, 281.0, 282.0],
+            [281.0, 281.5, 283.0],
+            [282.0, 283.0, 284.0],
+        ],
+        dtype=np.float32,
+    )
+
+    synthetic_dataset = xr.Dataset(
+        {
+            "band_data": (
+                ("lat", "lon"),
+                values,
+            ),
+        },
+        coords={
+            "lat": lat,
+            "lon": lon,
+        },
+    )
+
+    class FakeRemoteFile:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+    captured_open_kwargs = {}
+
+    def fake_fsspec_open(*args, **kwargs):
+        captured_open_kwargs["url"] = args[0] if args else kwargs.get("urlpath")
+        return FakeRemoteFile()
+
+    monkeypatch.setattr(
+        climate_acquisition.fsspec,
+        "open",
+        fake_fsspec_open,
+    )
+
+    monkeypatch.setattr(
+        climate_acquisition.xr,
+        "open_dataset",
+        lambda *args, **kwargs: synthetic_dataset,
+    )
+
+    bbox = BoundingBox(
+        xmin=-7.75,
+        xmax=-7.25,
+        ymin=41.25,
+        ymax=41.75,
+    )
+
+    result = load_chelsa_future_monthly_subset(
+        variable="tas",
+        month=4,
+        gcm="MRI-ESM2-0",
+        scenario="ssp370",
+        period="2041-2070",
+        bbox=bbox,
+    )
+
+    assert result["band_data"].shape == (1, 1)
+
+    assert (
+        captured_open_kwargs["url"]
+        == build_chelsa_future_climatology_url(
+            variable="tas",
+            month=4,
+            gcm="MRI-ESM2-0",
+            scenario="ssp370",
+            period="2041-2070",
+        )
+    )
+
+    assert result["band_data"].attrs["gcm"] == "MRI-ESM2-0"
+    assert result["band_data"].attrs["scenario"] == "ssp370"
+    assert result["band_data"].attrs["period"] == "2041-2070"
+    assert (
+        result["band_data"].attrs["source"]
+        == "CHELSA climatologies v2.1 (future)"
+    )
+
+
+def test_load_chelsa_future_monthly_subset_rejects_invalid_bbox():
+    bbox = BoundingBox(-181, -7, 41, 42)
+
+    with pytest.raises(ClimateAcquisitionError):
+        load_chelsa_future_monthly_subset(
+            variable="tas",
+            month=1,
+            gcm="MRI-ESM2-0",
+            scenario="ssp370",
+            period="2041-2070",
+            bbox=bbox,
+        )
