@@ -73,26 +73,44 @@ into the pipeline shape).
 
 ---
 
-### 3. Recommended proposal: monthly CHELSA v2.1, 5 GCMs
+### 3. Recommended proposal: monthly CHELSA v2.1, 5 GCMs, 2 SSPs
 
 This is what to present to the professor for decisions 1–2 above.
 
 **Proposal:** use the official CHELSA v2.1 future climatologies (monthly,
 same ~1km downscaling methodology as the historical baseline already
 validated) with its 5 standardised GCMs — GFDL-ESM4, IPSL-CM6A-LR,
-MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL.
+MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL — under 2 SSP scenarios: **SSP1-2.6**
+(low-emissions/conservative) and **SSP5-8.5** (high-emissions/extreme),
+bracketing the plausible range instead of also computing the SSP3-7.0
+middle scenario.
 
 **Why:**
 
 - It is the official, already-downscaled-to-1km CHELSA product, from the
   same group and methodology as the historical baseline — scientific
   continuity, no need to build a separate downscaling step.
-- 5 GCMs × 3 SSPs × 3 periods × monthly is a much smaller acquisition and
+- 5 GCMs × 2 SSPs × 3 periods × monthly is a much smaller acquisition and
   compute footprint than 9 GCMs × daily (the MONTEVITIS/CHELSA-ISIMIP3b
-  approach) — faster to implement, test and defend.
+  approach) or even the full 3-SSP version — faster to implement, test
+  and defend, and the platform can present results as a clear
+  "conservative vs. extreme" bracket rather than three overlapping lines
+  that are harder to read at the municipality scale.
 - The acquisition scaffold already built (`climate_acquisition.py`)
   targets the CHELSA climatology-style endpoint, which matches this
   product's format.
+
+**Update (Sept 2026): revised from 3 SSPs to 2.** The proposal originally
+included SSP3-7.0 as a middle scenario (and Phase 2's real-server
+validation happened to use it, since scenario choice doesn't affect the
+URL/format questions Phase 2 was validating). The user opted for the
+2-scenario bracket instead, ahead of Phase 3 (multi-GCM processing), both
+to cut the acquisition volume by a third and because conservative-vs-
+extreme is what a decision-facing atlas actually needs to show — SSP3-7.0
+can be added later as a strict extension (same config-driven dataset
+handling as any other scenario) if the professor or a reviewer asks for
+it. `config/climate.toml`'s `[future].scenarios` and `[pilot].scenario`
+reflect this.
 
 **The trade-off, to state explicitly rather than leave implicit:**
 monthly data cannot directly support frost-day counts, extreme-heat-day
@@ -267,39 +285,168 @@ fixes → clean success with plausible, metadata-consistent values.
 bbox, `tas`, MRI-ESM2-0, SSP3-7.0, 2041–2070), spot-checked against
 plausible values for the region — done above.
 
-#### Phase 3 — Multi-GCM processing — ⬜ not started, unblocked
+#### Phase 3 — Multi-GCM processing — ✅ confirmed against real data for one scenario/period (Sept 2026), full sweep pending
 
 *Depended on Phase 2, which is now done.*
 
-- Loop Phase 2's acquisition over the full confirmed GCM list.
-- Preserve each GCM's result individually (already the intent of
-  `processing.preserve_individual_gcm_results = true` in `climate.toml`).
+**Scope decided for this first pass** (narrower than "everything
+configured", to keep the first real acquisition run's volume
+manageable — see the scenario-bracket decision above): one variable
+(`tas`), the Douro region, all 5 configured GCMs, both configured
+scenarios (`ssp126`, `ssp585`), all 3 periods. That is 5 × 2 × 3 × 12 =
+360 real downloads — narrower scopes (fewer scenarios/periods, via the
+new script's flags) can validate the pipeline faster before committing
+to the full run.
 
-#### Phase 4 — Ensemble and uncertainty
+**Done:**
 
-*Depends on Phase 3.*
+- `src/future_climate_processing.py` (new module):
+  - `calculate_future_monthly_climatology_for_gcm`: downloads (via the
+    already-confirmed Phase 2 loader) and persists each of the 12
+    months for one GCM/scenario/period/variable/region combination,
+    then reuses `calculate_monthly_value_for_regions` — the same
+    generic zonal-statistics core the historical pipeline uses — on
+    each persisted raster, instead of writing a second implementation.
+    Already-persisted months are skipped on a re-run (`force_download`
+    to override), matching `processing.preserve_rasters = true`.
+  - `calculate_future_monthly_climatology_for_all_gcms`: loops the
+    above over every GCM in `config/climate.toml`'s `[models].gcms`,
+    keeping each GCM's result as its own rows (tagged by `gcm`) rather
+    than averaging them — averaging is Phase 4, not this phase.
+  - `persist_future_month_raster`: writes a downloaded month to a
+    local GeoTIFF via `rioxarray`. This caught a real bug during
+    testing: the Phase 2 loader's output uses `lat`/`lon` dims (its
+    own established convention), but `rioxarray`'s `.rio.to_raster()`
+    does not auto-detect those as spatial dims (only `x`/`y`) and
+    raises `MissingSpatialDimensionError` without an explicit
+    `rio.set_spatial_dims(x_dim="lon", y_dim="lat")` first — now
+    handled, and verified end-to-end against the real Phase 2 loader's
+    actual output shape (not just a synthetic test fixture), confirming
+    the round-tripped raster still decodes correctly through
+    `exactextract`/GDAL exactly like the pre-downloaded historical
+    rasters do.
+- `scripts/build_future_climatology.py` (new): the script the user
+  runs locally to perform the real acquisition. Loads CAOP boundaries
+  the same way `scripts/build_pilot_region.py` does, loops configured
+  (or `--scenario`/`--period`-narrowed) scenario × period combinations,
+  and writes one combined CSV to
+  `data/processed/future/{region}_{variable}_future_climatology.csv`.
+  Prints the total combination/download count up front, since this is
+  real network traffic on the user's machine, not something to start
+  blind.
+- Tests (`tests/test_future_climate_processing.py`, all mocked/
+  synthetic, no network): persistence round-trip, one full 12-month ×
+  N-municipality result for one GCM with correct `gcm`/`scenario`/
+  `period` tagging and correct unit conversion (reusing Phase 1's
+  Kelvin→Celsius logic), the multi-GCM loop tagging results correctly
+  per GCM, the "no GCMs configured" guard, and — critically — that a
+  second call with the same selection does **not** re-download
+  (asserts the mocked loader is never called), proving the persistence
+  skip-if-exists logic actually works, not just that it's present in
+  the code.
 
-- Implement `ensemble.method = "equal_weight_mean"` and the
-  `min`/`max`/`std` uncertainty metrics already declared in `climate.toml`.
-- Unit-test against a synthetic multi-GCM fixture (same pattern as the
-  existing synthetic-raster tests), so this doesn't require real GCM data
-  to validate the arithmetic.
+**Confirmed against real data (Sept 2026):** the user ran
+`scripts/build_future_climatology.py --scenario ssp585 --period 2041-2070`
+(the narrow first slice — 5 GCMs × 12 months = 60 real downloads) and
+it completed cleanly: `Wrote 1140 rows (5 GCMs x 1 scenarios x 1
+periods x 12 months x 19 municipalities)`, exactly matching the
+expected row count (5 × 12 × 19). Sample values (GFDL-ESM4, January)
+range 6.4–8.2 °C across Douro's municipalities, with the right spatial
+pattern — higher/more interior municipalities (Penedono, Sernancelhe)
+colder than lower-elevation ones near the river (Mesão Frio, Peso da
+Régua), consistent with the region's real orography. This confirms the
+full acquisition → persistence → zonal-statistics chain end to end for
+real, not just against synthetic fixtures.
 
-#### Phase 5 — Climate-change anomalies
+**Explicitly NOT done:**
 
-*Depends on Phase 4; independent of Phases 6–8.*
+- **The full 360-download sweep** (both scenarios × all 3 periods,
+  instead of just the one ssp585/2041-2070 slice confirmed above)
+  hasn't run yet. `scripts/build_future_climatology.py` with no
+  `--scenario`/`--period` flags does this; already-downloaded months
+  are reused, so re-running now only fetches the remaining ~300.
+- Variables beyond `tas` (`tasmin`, `tasmax`, `pr`) — the code is
+  already generic per-variable (same `CHELSA_VARIABLE_UNITS` core as
+  Phase 1), so this is a scope expansion via the script's `--variable`
+  flag once `tas` is confirmed for real, not new code.
+- Regions beyond Douro — `calculate_future_monthly_climatology_for_gcm`
+  only supports a single NUTS III name today (via
+  `resolve_selection_bounding_box`), so Beira Interior's multi-NUTS3
+  combination (Phase 10) is not yet wired into this future-data path.
 
-- Compute future-minus-baseline deltas per variable/SSP/period (absolute
-  for temperature, absolute + % for precipitation, per the earlier
-  architecture discussion).
-- Store as first-class outputs (not recomputed on every request) — these
-  are the numbers the platform should actually display, not raw futures
-  alone.
+**Deliverable:** ✅ done above — one confirmed real result set (Douro,
+`tas`, all 5 GCMs, ssp585, 2041-2070), plausible values with the right
+geographic pattern.
 
-#### Phase 6 — General bioclimatic indices
+#### Phase 4 — Ensemble and uncertainty — ✅ done (Sept 2026)
 
-*Depends on Phase 1 (multi-variable) for the historical baseline version;
-depends on Phase 2's data-resolution decision for the future version.*
+*Depends on Phase 3, which is now done.*
+
+- `src/climate_ensemble.py` (new): `calculate_ensemble_climatology`
+  aggregates Phase 3's per-GCM rows into one row per municipality/
+  month/variable/scenario/period, implementing
+  `config/climate.toml`'s `[ensemble].method = "equal_weight_mean"`
+  and the `min`/`max`/`std` uncertainty metrics. Scenario and period
+  are deliberately kept as separate groups, never averaged together —
+  the two-scenario bracket (docs/04 Section 3) exists specifically to
+  show conservative vs. extreme as distinct outcomes.
+- Unsupported `ensemble.method` or `uncertainty_metrics` values raise
+  a clear error instead of silently producing a wrong/partial result —
+  same defensive pattern as `CHELSA_VARIABLE_UNITS` in Phase 1.
+- `scripts/build_ensemble_climatology.py` (new): takes a Phase 3 CSV
+  (`scripts/build_future_climatology.py`'s output) and writes the
+  ensemble result to `data/processed/ensemble/`. Smoke-tested against
+  a small CSV built from the user's real Phase 3 sample values
+  (Alijó, January, ssp585/2041-2070 across all 5 GCMs) — ensemble mean
+  7.53 °C, range 6.75–8.25 °C, std 0.59 °C, all plausible.
+- `tests/test_climate_ensemble.py` (new, 8 tests, synthetic fixture
+  only — no real GCM data needed): basic mean/min/max/std arithmetic,
+  a zero-spread case, scenarios and municipalities correctly kept
+  separate rather than blended, only the requested uncertainty metrics
+  appear as columns, and the three configuration-error cases (bad
+  method, bad metric, missing column).
+
+**Deliverable:** ✅ done — run
+`python -m scripts.build_ensemble_climatology <path to a Phase 3 CSV>`
+once real Phase 3 data is available (the partial ssp585/2041-2070 CSV
+already works; re-run once the full sweep finishes for the complete
+picture).
+
+#### Phase 5 — Climate-change anomalies — ✅ done (Sept 2026)
+
+*Depends on Phase 4, which is now done; independent of Phases 6–8.*
+
+- `src/climate_anomalies.py` (new): `calculate_climate_anomalies` joins
+  Phase 4's ensemble output against Phase 1's historical baseline
+  output (`calculate_monthly_climatology_for_regions`) on municipality/
+  month/variable, and computes `anomaly_absolute` (future − baseline)
+  for every variable, plus `anomaly_percent` for precipitation only
+  (`PERCENT_ANOMALY_VARIABLES = {"pr"}`) — a "% warmer" reading near
+  0 °C isn't meaningful, but "% wetter/drier" is. The same baseline is
+  reused across every scenario/period row (a many-to-one join); a
+  baseline with more than one row per municipality/month/variable (a
+  caller passing multiple periods by mistake) raises an error rather
+  than silently picking one arbitrarily, same for any row with no
+  matching baseline at all.
+- `scripts/build_anomaly_climatology.py` (new): takes a Phase 4
+  ensemble CSV, recomputes the historical baseline the same way
+  `scripts/build_pilot_region.py` does, and writes the anomaly result
+  to `data/processed/anomalies/`.
+- `tests/test_climate_anomalies.py` (new, 7 tests, synthetic fixtures
+  only): temperature gets absolute-only anomaly, precipitation gets
+  both absolute and percent, the same baseline is correctly reused
+  across scenarios, and the four error cases (missing ensemble/
+  historical columns, a duplicated baseline, a baseline missing for
+  some row).
+
+**Deliverable:** run
+`python -m scripts.build_anomaly_climatology <path to a Phase 4 ensemble CSV>`
+once real Phase 3/4 data is available for a region/variable.
+
+#### Phase 6 — General bioclimatic indices — 🟡 GDD/Winkler + precipitation done (Sept 2026)
+
+*Depended on Phase 1 (multi-variable) for the historical baseline version
+and Phase 2's data-resolution decision for the future version - both done.*
 
 Two-tier structure, as previously agreed:
 
@@ -308,6 +455,60 @@ Two-tier structure, as previously agreed:
   balance/PET-based indicators.
 - Implement and validate against the historical baseline first (data
   already available), before requiring future data.
+
+**Done:**
+
+- `src/bioclimatic_indices.py` (new): `calculate_growing_degree_days`
+  (monthly-approximation GDD, parameterised by base temperature and
+  season months) and `calculate_growing_season_precipitation`. Both
+  are deliberately generic over their input - the same function works
+  on Phase 1's historical monthly climatology
+  (`value_column="mean_value"`, `group_columns=["municipality"]`) or
+  Phase 4/5's ensemble/anomaly output (`value_column="ensemble_mean"`,
+  `group_columns=["municipality", "scenario", "period"]`), so no
+  separate "future version" of this code is needed once real future
+  data is available.
+- `calculate_winkler_index`: the classic viticulture heat-summation
+  index (Amerine & Winkler, 1944) - GDD with `base_temperature=10.0`
+  and `season_months=range(4, 11)` (April-October), a named fixed-
+  parameter case of the same function. Directly relevant to Douro
+  (vinha, one of the 4 target crops). Deliberately stops at the raw
+  index value - the Winkler region classification (I-V) is a threshold
+  scheme and is not implemented here, consistent with Phase 7's rule
+  of never inventing a threshold ahead of agronomist confirmation.
+- Sanity-checked against the user's real Phase 4 ensemble values for
+  Alijó (ssp585, 2041-2070): Winkler Index ≈ 2151, a plausible value
+  for a warm future scenario in a region already known as a warm wine
+  region historically - not the kind of implausible number that would
+  indicate a formula error.
+- `tests/test_bioclimatic_indices.py` (new, 9 tests, synthetic
+  fixtures only): basic GDD arithmetic, negative degree-days clipped
+  to zero rather than allowed to cancel out warmer months, custom
+  base/season parameters, the Winkler wrapper matching its equivalent
+  direct GDD call, growing-season precipitation summing only the
+  requested months, groups (e.g. two scenarios) kept separate rather
+  than blended, and the three error cases (missing column, invalid
+  month, empty season selection).
+
+**Explicitly NOT done (out of Tier 1's realistic scope given monthly-
+only data):**
+
+- **Frost days and extreme-heat days** need daily minimum/maximum
+  temperatures to count days crossing a threshold - not computable
+  from monthly means. This is exactly the frost/chilling-sensitive
+  gap flagged when the monthly-vs-daily trade-off was decided (docs/04
+  Section 3), not a new limitation.
+- **Water balance/PET-based indicators** need `pet`, one of
+  `climate.toml`'s `[variables].optional` variables, whose unit
+  conversion is not yet confirmed (`CHELSA_VARIABLE_UNITS` in
+  `src/climate_processing.py` only covers `tas`/`tasmin`/`tasmax`/`pr`
+  today) - implementing this without a confirmed conversion would risk
+  silently applying the wrong unit, which the project's existing
+  pattern explicitly refuses to do.
+
+**Deliverable:** ✅ done for GDD/Winkler Index and growing-season
+precipitation - both work against historical data today and will work
+unchanged against real future/ensemble data once available.
 
 #### Phase 7 — Crop-specific indices
 

@@ -24,9 +24,12 @@ periods = [
     "2041-2070",
     "2071-2100"
 ]
+# Only the conservative/extreme bracket (SSP1-2.6, SSP5-8.5) - the
+# middle SSP3-7.0 scenario was deliberately dropped (Sept 2026, see
+# docs/04 Section 3) to cut acquisition volume by a third and keep the
+# platform's future-scenario comparison to a clear two-line bracket.
 scenarios = [
     "ssp126",
-    "ssp370",
     "ssp585"
 ]
 
@@ -77,7 +80,7 @@ preserve_individual_gcm_results = true
 region_type = "NUTS3"
 region_name = "Douro"
 variable = "tas"
-scenario = "ssp370"
+scenario = "ssp585"
 period = "2041-2070"
 
 # Deliberately empty until availability and methodology are confirmed
