@@ -20,10 +20,10 @@ def test_build_chelsa_climatology_url():
     )
 
     assert url == (
-        "https://os.zhdk.cloud.switch.ch/"
-        "chelsav2/GLOBAL/climatologies/"
-        "1981-2010/ncdf/"
-        "CHELSA_tas_01_1981-2010_V.2.1.nc"
+        "https://os.unil.cloud.switch.ch/"
+        "chelsa02/chelsa/global/climatologies/"
+        "tas/1981-2010/"
+        "CHELSA_tas_01_1981-2010_V.2.1.tif"
     )
 
 
@@ -168,10 +168,10 @@ def test_build_chelsa_future_climatology_url():
     )
 
     assert url == (
-        "https://os.zhdk.cloud.switch.ch/"
-        "chelsav2/GLOBAL/climatologies/"
-        "2041-2070/mri-esm2-0/ssp370/tas/"
-        "CHELSA_tas_04_2041-2070_mri-esm2-0_ssp370_V.2.1.tif"
+        "https://os.unil.cloud.switch.ch/"
+        "chelsa02/chelsa/global/climatologies/"
+        "tas/2041-2070/MRI-ESM2-0/ssp370/"
+        "CHELSA_mri-esm2-0_r1i1p1f1_w5e5_ssp370_tas_04_2041-2070_V.2.1.tif"
     )
 
 

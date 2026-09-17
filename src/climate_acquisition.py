@@ -7,8 +7,8 @@ import xarray as xr
 
 
 CHELSA_CLIMATOLOGY_BASE_URL = (
-    "https://os.zhdk.cloud.switch.ch/"
-    "chelsav2/GLOBAL/climatologies"
+    "https://os.unil.cloud.switch.ch/"
+    "chelsa02/chelsa/global/climatologies"
 )
 
 CHELSA_BASELINE_PERIOD = "1981-2010"
@@ -24,14 +24,31 @@ CHELSA_SUPPORTED_VARIABLES = {
 CHELSA_SCALE_FACTOR = 0.1
 
 # CHELSA v2.1's 5 standardised future GCMs (config/climate.toml
-# [models].gcms) and their lowercase filename/path slugs, per CHELSA's
-# published naming convention.
+# [models].gcms) and their lowercase filename slugs, confirmed against
+# a real directory listing of the CHELSA server (browsed via
+# envicloud.wsl.ch, Sept 2026) - see build_chelsa_future_climatology_url.
 CHELSA_FUTURE_GCM_SLUGS = {
     "GFDL-ESM4": "gfdl-esm4",
     "IPSL-CM6A-LR": "ipsl-cm6a-lr",
     "MPI-ESM1-2-HR": "mpi-esm1-2-hr",
     "MRI-ESM2-0": "mri-esm2-0",
     "UKESM1-0-LL": "ukesm1-0-ll",
+}
+
+# CMIP6 realization/forcing variant embedded in each GCM's CHELSA
+# filename (e.g. "r1i1p1f1"). Confirmed for all 5 GCMs against real
+# CHELSA listings (browsed via envicloud.wsl.ch, Sept 2026), e.g.
+# "CHELSA_gfdl-esm4_r1i1p1f1_w5e5_ssp126_tas_01_2071-2100_V.2.1.tif"
+# and "CHELSA_ukesm1-0-ll_r1i1p1f1_w5e5_ssp126_tas_01_2071-2100_
+# V.2.1.tif" - unlike the standard ISIMIP3b protocol (where UKESM1-0-
+# LL normally uses "r1i1p1f2"), CHELSA uses "r1i1p1f1" for all 5 GCMs
+# uniformly in this product.
+CHELSA_FUTURE_GCM_VARIANTS = {
+    "GFDL-ESM4": "r1i1p1f1",
+    "IPSL-CM6A-LR": "r1i1p1f1",
+    "MPI-ESM1-2-HR": "r1i1p1f1",
+    "MRI-ESM2-0": "r1i1p1f1",
+    "UKESM1-0-LL": "r1i1p1f1",
 }
 
 
@@ -88,7 +105,17 @@ def build_chelsa_climatology_url(
     period: str = CHELSA_BASELINE_PERIOD,
     version: str = CHELSA_VERSION,
 ) -> str:
-    """Build the official CHELSA monthly climatology NetCDF URL."""
+    """
+    Build the official CHELSA monthly climatology GeoTIFF URL.
+
+    Path/filename pattern confirmed against a real CHELSA directory
+    listing (browsed via envicloud.wsl.ch, Sept 2026): the server is
+    GeoTIFF (.tif), not NetCDF, and is organised as
+    climatologies/{variable}/{period}/{filename} - it does not have
+    the "ncdf" subfolder or ".nc" extension previously guessed here.
+    This also matches the local file naming convention already used
+    by src/climate_processing.py for pre-downloaded rasters.
+    """
 
     if variable not in CHELSA_SUPPORTED_VARIABLES:
         raise ClimateAcquisitionError(
@@ -102,12 +129,12 @@ def build_chelsa_climatology_url(
 
     filename = (
         f"CHELSA_{variable}_{month:02d}_"
-        f"{period}_V.{version}.nc"
+        f"{period}_V.{version}.tif"
     )
 
     return (
         f"{CHELSA_CLIMATOLOGY_BASE_URL}/"
-        f"{period}/ncdf/{filename}"
+        f"{variable}/{period}/{filename}"
     )
 
 
@@ -121,7 +148,18 @@ def load_chelsa_monthly_subset(
     Load one CHELSA monthly climatology subset into memory.
 
     The remote file is opened lazily, spatially subsetted, and only then
-    materialized. CHELSA's 0.1 scale factor is applied exactly once.
+    materialized. CHELSA's 0.1 scale factor is applied exactly once,
+    unconditionally, on the assumption that GDAL/rioxarray's
+    engine="rasterio" backend does not auto-decode the GeoTIFF's
+    embedded scale/offset by default. This has not been confirmed
+    against a real download through this exact code path (the Douro
+    pilot's confirmed-good values came from src/climate_processing.py
+    reading local pre-downloaded rasters through exactextract/GDAL
+    directly, which is a different code path and, per its own
+    comments, applies the scale/offset automatically). Run
+    scripts/validate_future_acquisition.py locally to check whether
+    this assumption holds for this loader too - see the interpretation
+    guidance printed by that script.
     """
 
     bbox.validate()
@@ -140,7 +178,7 @@ def load_chelsa_monthly_subset(
     with fsspec.open(url, mode="rb") as remote_file:
         dataset = xr.open_dataset(
             remote_file,
-            engine="h5netcdf",
+            engine="rasterio",
             chunks=chunks,
         )
 
@@ -151,16 +189,20 @@ def load_chelsa_monthly_subset(
 
         subset = subset.load()
 
-    if "Band1" not in subset:
+    data_vars = list(subset.data_vars)
+
+    if not data_vars:
         raise ClimateAcquisitionError(
-            "CHELSA dataset does not contain expected variable 'Band1'."
+            "CHELSA dataset does not contain any data variable."
         )
 
-    subset["Band1"] = (
-        subset["Band1"] * CHELSA_SCALE_FACTOR
+    band = data_vars[0]
+
+    subset[band] = (
+        subset[band] * CHELSA_SCALE_FACTOR
     )
 
-    subset["Band1"].attrs.update(
+    subset[band].attrs.update(
         {
             "source": "CHELSA climatologies v2.1",
             "period": CHELSA_BASELINE_PERIOD,
@@ -170,7 +212,7 @@ def load_chelsa_monthly_subset(
     )
 
     if variable in {"tas", "tasmin", "tasmax"}:
-        subset["Band1"].attrs["units"] = "K"
+        subset[band].attrs["units"] = "K"
 
     return subset
 
@@ -186,17 +228,18 @@ def build_chelsa_future_climatology_url(
     """
     Build the CHELSA v2.1 future monthly climatology file URL.
 
-    NOT YET VERIFIED against the live CHELSA server: this development
-    session's network policy could not reach
-    os.zhdk.cloud.switch.ch (see docs/03_pilot_interactive_platform.md
-    section 3), so this exact path has not been confirmed to resolve.
-    It follows CHELSA's documented directory convention for future
-    climatologies (period / gcm / scenario / variable), on the same
-    host and version as the historical loader above, which was
-    confirmed against real data during the Douro pilot. Treat the
-    first real download attempt as the verification step for this
-    function — see docs/04_roadmap_future_and_bioclimatic_indices.md,
-    Phase 2.
+    Path/filename pattern confirmed against a real CHELSA directory
+    listing (browsed via envicloud.wsl.ch, Sept 2026), e.g.:
+    climatologies/tas/2071-2100/GFDL-ESM4/ssp126/
+    CHELSA_gfdl-esm4_r1i1p1f1_w5e5_ssp126_tas_01_2071-2100_V.2.1.tif
+
+    Note the folder for the GCM uses its original mixed-case name
+    (e.g. "GFDL-ESM4"), while the filename itself uses the lowercase
+    slug plus a CMIP6 realization/forcing variant and the "w5e5" bias-
+    adjustment tag (CHELSA's future climatologies are ISIMIP3b GCM
+    output bias-corrected against W5E5). The variant ("r1i1p1f1" for
+    all 5 GCMs, including UKESM1-0-LL) is confirmed for every GCM
+    against real CHELSA listings — see CHELSA_FUTURE_GCM_VARIANTS.
 
     Parameters
     ----------
@@ -240,15 +283,16 @@ def build_chelsa_future_climatology_url(
         )
 
     gcm_slug = CHELSA_FUTURE_GCM_SLUGS[gcm]
+    gcm_variant = CHELSA_FUTURE_GCM_VARIANTS[gcm]
 
     filename = (
-        f"CHELSA_{variable}_{month:02d}_{period}_"
-        f"{gcm_slug}_{scenario}_V.{version}.tif"
+        f"CHELSA_{gcm_slug}_{gcm_variant}_w5e5_{scenario}_"
+        f"{variable}_{month:02d}_{period}_V.{version}.tif"
     )
 
     return (
-        f"{CHELSA_CLIMATOLOGY_BASE_URL}/{period}/{gcm_slug}/"
-        f"{scenario}/{variable}/{filename}"
+        f"{CHELSA_CLIMATOLOGY_BASE_URL}/{variable}/{period}/"
+        f"{gcm}/{scenario}/{filename}"
     )
 
 
@@ -266,12 +310,14 @@ def load_chelsa_future_monthly_subset(
 
     Same remote-subset-then-materialize approach as
     load_chelsa_monthly_subset, applied to the future GCM/SSP product.
-    The remote file here is GeoTIFF (not NetCDF like the historical
-    loader), opened through rioxarray's xarray backend, so the data
-    variable name and any scale/offset handling GDAL already applies
-    may differ from the historical loader's 'Band1' convention. This
-    has not been exercised against a real file - see the caveat on
-    build_chelsa_future_climatology_url above.
+    Both loaders now read GeoTIFF through the same "rasterio" xarray
+    backend, and both share the same open question: whether that
+    backend auto-decodes the GeoTIFF's embedded scale/offset. Unlike
+    the historical loader, this one does NOT multiply by
+    CHELSA_SCALE_FACTOR, on the (equally unconfirmed) opposite
+    assumption. Run scripts/validate_future_acquisition.py locally
+    against a real file and compare the printed min/max/mean against
+    its interpretation guidance to resolve this for both loaders.
     """
 
     bbox.validate()

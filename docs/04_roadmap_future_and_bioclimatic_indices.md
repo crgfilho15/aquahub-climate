@@ -144,7 +144,7 @@ locally (same 1981–2010 baseline, same Douro region) and run through
 tests prove the logic is correct, not that the real CHELSA files match
 the expected naming/unit assumptions.
 
-#### Phase 2 — Future data acquisition — 🟡 scaffold built (Sept 2026), unverified against real data
+#### Phase 2 — Future data acquisition — 🟡 URL/path confirmed (Sept 2026), scale-factor handling still unverified
 
 *Unblocked: the user adopted the Section 3 proposal (monthly CHELSA v2.1,
 5 GCMs) as the working assumption to build against, pending final
@@ -154,10 +154,10 @@ professor sign-off.*
 
 - `src/climate_acquisition.py`: `build_chelsa_future_climatology_url` and
   `load_chelsa_future_monthly_subset`, the future-data equivalents of the
-  already-verified historical `build_chelsa_climatology_url`/
-  `load_chelsa_monthly_subset`, parametrised by variable + GCM + SSP +
-  period. `CHELSA_FUTURE_GCM_SLUGS` maps the 5 configured GCMs to their
-  filename slugs and rejects anything else.
+  historical `build_chelsa_climatology_url`/`load_chelsa_monthly_subset`,
+  parametrised by variable + GCM + SSP + period. `CHELSA_FUTURE_GCM_SLUGS`
+  maps the 5 configured GCMs to their filename slugs and rejects
+  anything else.
 - `src/future_climate_pipeline.py`: `load_future_month_for_experiment`,
   the future counterpart to the existing
   `load_reference_month_for_experiment`, wired through
@@ -165,49 +165,75 @@ professor sign-off.*
 - Tests cover the URL construction and validation logic, and the
   loader's wiring (bbox → URL → metadata), using a mocked network call
   — the same pattern used for the historical loader's tests.
+- **The remote host, path and filename pattern are now confirmed
+  against real CHELSA directory listings** (browsed manually via
+  envicloud.wsl.ch, since this development session cannot reach
+  `os.zhdk.cloud.switch.ch` or `os.unil.cloud.switch.ch` itself — see
+  `docs/03` section 3). This corrected two things that were wrong in the
+  original guess:
+  - **Wrong host.** The originally coded host
+    (`os.zhdk.cloud.switch.ch/chelsav2/GLOBAL/...`) 404'd on a real
+    request. The real host/bucket is
+    `os.unil.cloud.switch.ch/chelsa02/chelsa/global/climatologies/`.
+    This affects **both** the historical and future URL builders — the
+    historical loader's remote endpoint had never actually been tested
+    against a live server either (the Douro pilot's confirmed-good
+    values came from `src/climate_processing.py` reading local
+    pre-downloaded rasters directly, a different code path).
+  - **Wrong format/path shape.** The real server is GeoTIFF
+    (`.tif`), organised as `climatologies/{variable}/{period}/...`
+    (historical) and
+    `climatologies/{variable}/{period}/{GCM}/{scenario}/{filename}`
+    (future) — not the NetCDF `ncdf/` mirror previously assumed for
+    the historical loader. Both loaders now read GeoTIFF through the
+    same `engine="rasterio"` xarray backend.
+  - **GCM realization variant confirmed for all 5 GCMs.** Future
+    filenames embed a CMIP6 realization/forcing code, e.g.
+    `CHELSA_gfdl-esm4_r1i1p1f1_w5e5_ssp126_tas_01_2071-2100_V.2.1.tif`.
+    All 5 configured GCMs use `r1i1p1f1` in this CHELSA product —
+    notably including `UKESM1-0-LL`, which uses a *different* variant
+    (`r1i1p1f2`) under the standard ISIMIP3b protocol elsewhere, but
+    was confirmed as `r1i1p1f1` here directly from a real filename
+    (`CHELSA_ukesm1-0-ll_r1i1p1f1_w5e5_ssp126_tas_01_2071-2100_
+    V.2.1.tif`). Encoded in `CHELSA_FUTURE_GCM_VARIANTS`.
 
 **Explicitly NOT done — do not treat this as validated:**
 
-- **The exact remote URL/path has not been confirmed to resolve.** This
-  development session cannot reach `os.zhdk.cloud.switch.ch` (see
-  `docs/03` section 3). The path follows CHELSA's documented directory
-  convention (`period/gcm/scenario/variable/filename.tif`) by inference
-  from the already-verified historical endpoint, not from a live
-  request.
-- **The file format assumption is unverified.** The historical loader
-  reads CHELSA's `ncdf` mirror (NetCDF, variable name `Band1`); the
-  future loader assumes a native GeoTIFF via `engine="rasterio"`
-  (rioxarray), which likely uses a different variable name
-  (`band_data`) and may already apply the scale/offset during read —
-  the future loader deliberately does **not** re-apply
-  `CHELSA_SCALE_FACTOR`, unlike the historical one, because whether
-  GDAL/rioxarray already applied it is unconfirmed either way.
+- **The scale-factor handling is unverified for both loaders.** The
+  historical loader unconditionally multiplies by `CHELSA_SCALE_FACTOR`
+  (0.1); the future loader deliberately does not. Whichever is right
+  depends on whether GDAL/rioxarray's `engine="rasterio"` backend
+  auto-decodes the GeoTIFF's embedded scale/offset — genuinely unknown
+  either way without a real download through this exact code path
+  (`src/climate_processing.py`'s confirmed-good local values went
+  through `exactextract`/GDAL directly, a different code path that,
+  per its own comments, decodes scale/offset automatically — that does
+  not tell us what `xr.open_dataset(..., engine="rasterio")` does).
 - Raw future data persistence under `data/raw/future/...` (the
   directory convention already exists in `climate_paths.py`, but no
   download has actually been run to populate it).
 
 **Next validation step (needs real network access, i.e. not this
-session):** `scripts/validate_future_acquisition.py` does exactly this —
-one small, fast download (Vila Real bbox, one month) for a chosen
-variable/GCM/scenario/period, printing the requested URL, success/
-failure, and (on success) the resulting data variable names, value
-range and attrs, with guidance on what those values imply about the
-scale-factor question above. Run it locally:
+session):** `scripts/validate_future_acquisition.py` now runs both
+loaders — one small, fast download each (Vila Real bbox, one month) —
+printing the requested URLs, success/failure, and (on success) the
+resulting data variable names, value ranges and attrs, with guidance on
+what those values imply about the scale-factor question above. Run it
+locally:
 
 ```powershell
 python -m scripts.validate_future_acquisition
 ```
 
-A first attempt from this session (network-blocked, as always — see
-`docs/03` section 3) returned a generic `FileNotFoundError` through
-`aiohttp`/`fsspec`. That is **not evidence the URL is wrong** — it is
-the same proxy-level connection block this session hits for every
-CHELSA request, just surfaced differently than `curl`'s explicit
-"CONNECT tunnel failed" message. Only a real run against actual
-internet access is informative here. Fix
-`build_chelsa_future_climatology_url` and the loader's data-variable/
-scaling assumptions based on what that real attempt reveals, the same
-way `tasmin`/`tasmax`/`pr` are pending validation from Phase 1.
+A first attempt at the future loader (against the old, wrong URL) from
+this session's network-blocked sandbox returned a generic
+`FileNotFoundError` through `aiohttp`/`fsspec` — that was **not
+evidence the URL was wrong** on its own (same proxy-level block this
+session always hits). The user then ran the same script from a real
+machine and got a real `FileNotFoundError`, which **was** meaningful —
+that is what led to finding and fixing the correct host/path above by
+browsing the CHELSA server manually. The remaining scale-factor
+question needs one more real run of the (now-fixed) script.
 
 **Deliverable once validated:** one confirmed future climatology cell
 (e.g. Douro, `tas`, one GCM, SSP3-7.0, 2041–2070), spot-checked against
