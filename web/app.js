@@ -295,12 +295,33 @@ function buildLegend(min, max) {
   return legend;
 }
 
-async function loadPilot() {
+let map = null;
+let currentGeoLayer = null;
+let currentLegend = null;
+
+function initMap() {
+  map = L.map("map");
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "© OpenStreetMap contributors",
+  }).addTo(map);
+}
+
+function resetPanel() {
+  document.getElementById("panel-content").hidden = true;
+  document.getElementById("panel-empty").hidden = false;
+}
+
+async function loadRegion(slug) {
   const subtitle = document.getElementById("banner-subtitle");
+  const warning = document.getElementById("banner-warning");
+  warning.hidden = true;
+  resetPanel();
 
   let meta;
   try {
-    const metaResponse = await fetch("/api/pilot/douro/meta");
+    const metaResponse = await fetch(`/api/pilot/${slug}/meta`);
     if (!metaResponse.ok) {
       throw new Error(await metaResponse.text());
     }
@@ -308,33 +329,33 @@ async function loadPilot() {
   } catch (err) {
     subtitle.innerHTML =
       "Dados do piloto não encontrados. Rode " +
-      "<code>python -m scripts.build_pilot_douro</code> localmente " +
-      "e reinicie a API.";
+      `<code>python -m scripts.build_pilot_region --region ${slug}</code> ` +
+      "localmente e reinicie a API.";
     return;
   }
 
   subtitle.innerHTML =
-    `${meta.dataset} · variável <strong>${meta.variable}</strong> · ` +
+    `${meta.region_name} · ${meta.dataset} · ` +
+    `variável <strong>${meta.variable}</strong> · ` +
     `período <strong>${meta.period}</strong> · ` +
     `metodologia: <strong>${meta.methodology_status}</strong>`;
 
   if (!meta.future_scenarios_included) {
-    const warning = document.getElementById("banner-warning");
     warning.textContent =
       "Cenários futuros (SSP/GCM) ainda não incluídos — " +
       "aguardando validação metodológica com o professor.";
     warning.hidden = false;
   }
 
-  const geoResponse = await fetch(`/api/pilot/${meta.region_name.toLowerCase()}`);
+  const geoResponse = await fetch(`/api/pilot/${slug}`);
   const featureCollection = await geoResponse.json();
 
-  const map = L.map("map");
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 18,
-    attribution: "© OpenStreetMap contributors",
-  }).addTo(map);
+  if (currentGeoLayer) {
+    map.removeLayer(currentGeoLayer);
+  }
+  if (currentLegend) {
+    map.removeControl(currentLegend);
+  }
 
   const values = featureCollection.features.map(
     (f) => f.properties.annual_mean_celsius
@@ -342,7 +363,7 @@ async function loadPilot() {
   const min = Math.min(...values);
   const max = Math.max(...values);
 
-  const geoLayer = L.geoJSON(featureCollection, {
+  currentGeoLayer = L.geoJSON(featureCollection, {
     style: (feature) => ({
       fillColor: temperatureToColor(
         feature.properties.annual_mean_celsius,
@@ -362,9 +383,47 @@ async function loadPilot() {
     },
   }).addTo(map);
 
-  map.fitBounds(geoLayer.getBounds(), { padding: [16, 16] });
+  map.fitBounds(currentGeoLayer.getBounds(), { padding: [16, 16] });
 
-  buildLegend(min, max).addTo(map);
+  currentLegend = buildLegend(min, max);
+  currentLegend.addTo(map);
 }
 
-loadPilot();
+async function init() {
+  initMap();
+
+  const select = document.getElementById("region-select");
+  const subtitle = document.getElementById("banner-subtitle");
+
+  let regions = [];
+  try {
+    const response = await fetch("/api/pilot");
+    regions = await response.json();
+  } catch (err) {
+    regions = [];
+  }
+
+  if (regions.length === 0) {
+    subtitle.innerHTML =
+      "Nenhum piloto construído ainda. Rode " +
+      "<code>python -m scripts.build_pilot_region</code> localmente " +
+      "e reinicie a API.";
+    select.innerHTML = '<option value="">nenhuma região disponível</option>';
+    return;
+  }
+
+  select.innerHTML = "";
+  for (const region of regions) {
+    const option = document.createElement("option");
+    option.value = region.slug;
+    option.textContent = region.label;
+    select.appendChild(option);
+  }
+  select.disabled = false;
+
+  select.addEventListener("change", () => loadRegion(select.value));
+
+  await loadRegion(regions[0].slug);
+}
+
+init();

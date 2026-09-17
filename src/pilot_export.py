@@ -132,6 +132,7 @@ def build_pilot_feature_collection(
 
 
 def build_pilot_metadata(
+    region_slug: str,
     region_type: str,
     region_name: str,
     variable: str,
@@ -142,6 +143,7 @@ def build_pilot_metadata(
     """Build the metadata record describing the pilot dataset."""
 
     return {
+        "slug": region_slug,
         "region_type": region_type,
         "region_name": region_name,
         "variable": variable,

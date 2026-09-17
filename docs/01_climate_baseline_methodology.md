@@ -529,6 +529,10 @@ Current responsibilities include:
 - selecting multiple municipalities by name;
 - selecting municipality names belonging to a NUTS III;
 - selecting complete municipality geometries belonging to a NUTS III;
+- combining multiple NUTS III units into one region (September 2026 —
+  needed because some AquaHub intervention areas, such as "Beira
+  Interior", do not necessarily correspond to a single official NUTS
+  III name; see `docs/03`);
 - case-insensitive administrative searches;
 - missing administrative-unit validation;
 - CRS reprojection.
@@ -540,6 +544,7 @@ get_municipality_geometry(...)
 get_municipalities_by_names(...)
 get_municipality_names_by_nuts3(...)
 get_municipalities_by_nuts3(...)
+get_municipalities_by_nuts3_list(...)
 ```
 
 ---
@@ -606,6 +611,8 @@ annual climatologies
 ```
 
 Each workflow also has a generic, variable-parameterised counterpart (`process_municipality_climatology`, `process_multiple_municipalities_climatology`, `process_nuts3_climatology`), which accepts any variable from `CHELSA_VARIABLE_UNITS` instead of being fixed to `tas`. The `_temperature` functions above are unchanged and now call the same underlying generic processing core with `variable="tas"`.
+
+A further variant, `process_multi_nuts3_climatology`, combines more than one NUTS III unit into a single region (see `docs/03` and `docs/04` Phase 10) — used when an AquaHub intervention area is not a single official NUTS III unit.
 
 ---
 

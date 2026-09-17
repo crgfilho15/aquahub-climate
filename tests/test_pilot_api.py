@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from api.main import app
 
 
-def write_fixture(tmp_path):
+def write_fixture(tmp_path, slug="douro", label="Douro"):
     geojson = {
         "type": "FeatureCollection",
         "features": [
@@ -30,8 +30,9 @@ def write_fixture(tmp_path):
     }
 
     metadata = {
+        "slug": slug,
         "region_type": "NUTS3",
-        "region_name": "Douro",
+        "region_name": label,
         "variable": "tas",
         "period": "1981-2010",
         "dataset": "CHELSA climatologies v2.1",
@@ -40,10 +41,10 @@ def write_fixture(tmp_path):
         "generated_at": "2026-09-16T00:00:00+00:00",
     }
 
-    (tmp_path / "douro_pilot.geojson").write_text(
+    (tmp_path / f"{slug}_pilot.geojson").write_text(
         json.dumps(geojson), encoding="utf-8"
     )
-    (tmp_path / "douro_pilot_meta.json").write_text(
+    (tmp_path / f"{slug}_pilot_meta.json").write_text(
         json.dumps(metadata), encoding="utf-8"
     )
 
@@ -78,13 +79,63 @@ def test_get_pilot_geojson_missing_data_returns_404_with_hint(tmp_path, monkeypa
     response = client.get("/api/pilot/douro")
 
     assert response.status_code == 404
-    assert "build_pilot_douro" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert "build_pilot_region" in detail
+    assert "douro" in detail
 
 
-def test_get_pilot_unknown_region_returns_404(tmp_path, monkeypatch):
+def test_get_pilot_unconfigured_region_returns_404(tmp_path, monkeypatch):
+    """A slug that isn't in config/climate.toml's
+    [[pilot_platform.regions]] must never reach the filesystem lookup —
+    it is rejected by the allow-list before any file path is built."""
+
+    monkeypatch.setenv("AQUAHUB_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get("/api/pilot/not-a-real-region")
+
+    assert response.status_code == 404
+    assert "Unknown pilot region" in response.json()["detail"]
+
+
+def test_get_pilot_configured_but_unbuilt_region_returns_build_hint(
+    tmp_path, monkeypatch
+):
+    """'beira-interior' is configured in climate.toml but has no
+    nuts3_names yet, so it is never built; the API should say so via
+    the normal missing-data hint, not treat it as unknown."""
+
     monkeypatch.setenv("AQUAHUB_PILOT_DATA_DIR", str(tmp_path))
 
     client = TestClient(app)
     response = client.get("/api/pilot/beira-interior")
 
     assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert "build_pilot_region" in detail
+    assert "beira-interior" in detail
+
+
+def test_list_available_pilot_regions_empty_when_nothing_built(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("AQUAHUB_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get("/api/pilot")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_available_pilot_regions_includes_built_region_only(
+    tmp_path, monkeypatch
+):
+    write_fixture(tmp_path, slug="douro", label="Douro")
+    monkeypatch.setenv("AQUAHUB_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get("/api/pilot")
+
+    assert response.status_code == 200
+    assert response.json() == [{"slug": "douro", "label": "Douro"}]

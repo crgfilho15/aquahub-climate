@@ -7,6 +7,7 @@ from src.boundary_processing import (
     get_municipality_geometry,
     get_municipalities_by_names,
     get_municipalities_by_nuts3,
+    get_municipalities_by_nuts3_list,
     get_nuts3_bounds,
 )
 
@@ -192,3 +193,73 @@ def test_get_nuts3_bounds():
         "ymin": float(ymin),
         "ymax": float(ymax),
     }
+
+def test_get_municipalities_by_nuts3_list_combines_multiple_regions():
+    """
+    Uma área de intervenção do AquaHub pode ser a combinação de
+    mais de uma NUTS III oficial (ex. Beira Interior). A função
+    deve unir os municípios de todas as NUTS III solicitadas.
+    """
+
+    municipalities = create_test_municipalities()
+
+    result = get_municipalities_by_nuts3_list(
+        municipalities_gdf=municipalities,
+        nuts3_names=["Douro", "Terras de Trás-os-Montes"],
+    )
+
+    assert len(result) == 3
+
+    assert set(result["municipio"]) == {
+        "Vila Real",
+        "Alijó",
+        "Bragança",
+    }
+
+    assert result.crs.to_epsg() == 4326
+
+def test_get_municipalities_by_nuts3_list_is_case_insensitive():
+    municipalities = create_test_municipalities()
+
+    result = get_municipalities_by_nuts3_list(
+        municipalities_gdf=municipalities,
+        nuts3_names=["douro"],
+    )
+
+    assert set(result["municipio"]) == {"Vila Real", "Alijó"}
+
+def test_get_municipalities_by_nuts3_list_rejects_empty_list():
+    municipalities = create_test_municipalities()
+
+    with pytest.raises(ValueError, match="não pode estar vazia"):
+        get_municipalities_by_nuts3_list(
+            municipalities_gdf=municipalities,
+            nuts3_names=[],
+        )
+
+def test_get_municipalities_by_nuts3_list_rejects_missing_nuts3():
+    municipalities = create_test_municipalities()
+
+    with pytest.raises(ValueError, match="NUTS III não encontradas"):
+        get_municipalities_by_nuts3_list(
+            municipalities_gdf=municipalities,
+            nuts3_names=["Douro", "Não Existe"],
+        )
+
+def test_get_municipalities_by_nuts3_list_deduplicates_municipalities():
+    """
+    Se o mesmo município aparecer sob mais de uma NUTS III
+    solicitada (não deveria acontecer com dados reais, mas a
+    função não deve duplicá-lo caso ocorra), ele deve aparecer
+    apenas uma vez no resultado.
+    """
+
+    municipalities = create_test_municipalities()
+
+    result = get_municipalities_by_nuts3_list(
+        municipalities_gdf=municipalities,
+        nuts3_names=["Douro", "Douro"],
+    )
+
+    assert len(result) == 2
+    assert result["municipio"].is_unique

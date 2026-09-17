@@ -1,6 +1,6 @@
 [project]
 name = "AquaHub Climate"
-development_version = "0.3.0"
+development_version = "0.4.0"
 methodology_status = "provisional"
 
 [historical]
@@ -9,8 +9,16 @@ period = "1981-2010"
 spatial_resolution = "30 arcsec (~1 km)"
 
 [future]
+# PROPOSAL pending confirmation with the research team (see
+# docs/02_methodological_questions_for_team.md and docs/04, Track A).
+# This is the "monthly, 5-GCM" option: the official CHELSA v2.1 future
+# climatologies product, at the same ~1km resolution and downscaling
+# methodology as the historical baseline above. It is monthly, not
+# daily - see docs/04 for why that trade-off was chosen and what it
+# means for frost/chilling indices later.
 dataset = "CHELSA-climatologies-v2.1-CMIP6"
-model_set = "ISIMIP3b"
+model_set = "CHELSA-v2.1-standard-5"
+temporal_resolution = "monthly"
 periods = [
     "2011-2040",
     "2041-2070",
@@ -23,8 +31,16 @@ scenarios = [
 ]
 
 [models]
-# Definitive GCM list will be confirmed with the research team
-gcms = []
+# PROPOSAL pending confirmation with the research team - the 5 GCMs
+# standardised by CHELSA v2.1 (matches [future].model_set above).
+# Not yet approved by the professor.
+gcms = [
+    "GFDL-ESM4",
+    "IPSL-CM6A-LR",
+    "MPI-ESM1-2-HR",
+    "MRI-ESM2-0",
+    "UKESM1-0-LL"
+]
 
 [variables]
 core = [
@@ -69,14 +85,33 @@ gcm = ""
 
 [pilot_platform]
 # Configuration for the interactive pilot platform
-# (scripts/build_pilot_douro.py + api/ + web/).
+# (scripts/build_pilot_region.py + api/ + web/).
 #
 # v1 deliberately shows only the validated historical baseline.
-# Future SSP/GCM scenarios are not included until the dataset,
-# GCM set and temporal resolution are confirmed with the research
-# team (see docs/02_methodological_questions_for_team.md).
-region_type = "NUTS3"
-region_name = "Douro"
+# Future SSP/GCM scenarios are not included until the items above
+# are confirmed with the research team (see
+# docs/02_methodological_questions_for_team.md).
+#
+# Shared across every configured region below - v1 only has 'tas'
+# validated against real CHELSA data.
 variable = "tas"
 period = "1981-2010"
 dataset = "CHELSA climatologies v2.1"
+
+# Each entry is one selectable region in the platform. 'nuts3_names'
+# is a list because an AquaHub intervention area does not always
+# correspond to a single official NUTS III unit (see docs/03).
+[[pilot_platform.regions]]
+slug = "douro"
+label = "Douro"
+nuts3_names = ["Douro"]
+
+[[pilot_platform.regions]]
+slug = "beira-interior"
+label = "Beira Interior"
+# PLACEHOLDER - not yet confirmed against the real CAOP2025.gpkg.
+# "Beira Interior" is an AquaHub project area, not necessarily a
+# literal NUTS III name. Replace with whichever nuts3 value(s) your
+# CAOP file actually contains for this area before running the build
+# script for this region (see docs/03 for how to check).
+nuts3_names = []
