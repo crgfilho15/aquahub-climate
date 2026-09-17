@@ -187,12 +187,27 @@ professor sign-off.*
   download has actually been run to populate it).
 
 **Next validation step (needs real network access, i.e. not this
-session):** run `load_future_month_for_experiment` for one real
-GCM × SSP × period × Douro bbox and confirm it: (a) resolves at all,
-(b) returns physically plausible values, (c) the scale/offset handling
-is correct. Fix `build_chelsa_future_climatology_url` and the loader's
-data-variable/scaling assumptions based on what that attempt reveals,
-the same way `tasmin`/`tasmax`/`pr` are pending validation from Phase 1.
+session):** `scripts/validate_future_acquisition.py` does exactly this —
+one small, fast download (Vila Real bbox, one month) for a chosen
+variable/GCM/scenario/period, printing the requested URL, success/
+failure, and (on success) the resulting data variable names, value
+range and attrs, with guidance on what those values imply about the
+scale-factor question above. Run it locally:
+
+```powershell
+python -m scripts.validate_future_acquisition
+```
+
+A first attempt from this session (network-blocked, as always — see
+`docs/03` section 3) returned a generic `FileNotFoundError` through
+`aiohttp`/`fsspec`. That is **not evidence the URL is wrong** — it is
+the same proxy-level connection block this session hits for every
+CHELSA request, just surfaced differently than `curl`'s explicit
+"CONNECT tunnel failed" message. Only a real run against actual
+internet access is informative here. Fix
+`build_chelsa_future_climatology_url` and the loader's data-variable/
+scaling assumptions based on what that real attempt reveals, the same
+way `tasmin`/`tasmax`/`pr` are pending validation from Phase 1.
 
 **Deliverable once validated:** one confirmed future climatology cell
 (e.g. Douro, `tas`, one GCM, SSP3-7.0, 2041–2070), spot-checked against
