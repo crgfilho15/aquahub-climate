@@ -109,9 +109,12 @@ nuts3_names = ["Douro"]
 [[pilot_platform.regions]]
 slug = "beira-interior"
 label = "Beira Interior"
-# PLACEHOLDER - not yet confirmed against the real CAOP2025.gpkg.
-# "Beira Interior" is an AquaHub project area, not necessarily a
-# literal NUTS III name. Replace with whichever nuts3 value(s) your
-# CAOP file actually contains for this area before running the build
-# script for this region (see docs/03 for how to check).
-nuts3_names = []
+# INFERRED, not yet confirmed against the official AquaHub area
+# definition - CAOP2025 uses Portugal's revised (2024) NUTS III
+# classification, which has no literal "Beira Interior" unit. The old
+# "Beira Interior Norte" + "Beira Interior Sul" + "Cova da Beira"
+# (pre-2024 classification) were consolidated into "Beiras e Serra da
+# Estrela" and "Beira Baixa" in the revision, which is the combination
+# used here. If the AquaHub project's actual intervention boundary is
+# narrower/different, adjust this list accordingly.
+nuts3_names = ["Beira Baixa", "Beiras e Serra da Estrela"]
