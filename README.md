@@ -145,6 +145,7 @@ aquahub-climate/
 │   └── validate_future_acquisition.py
 │
 ├── src/
+│   ├── bioclimatic_indices.py
 │   ├── boundary_processing.py
 │   ├── climate_acquisition.py
 │   ├── climate_analysis.py
@@ -720,7 +721,7 @@ pytest -v
 Current test status:
 
 ```text
-122 passed, 1 skipped
+131 passed, 1 skipped
 ```
 
 The skipped test is the pre-existing opt-in remote CHELSA integration check (`AQUAHUB_RUN_REMOTE_TESTS=1`), which requires live network access.

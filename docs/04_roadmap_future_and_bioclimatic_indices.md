@@ -443,10 +443,10 @@ picture).
 `python -m scripts.build_anomaly_climatology <path to a Phase 4 ensemble CSV>`
 once real Phase 3/4 data is available for a region/variable.
 
-#### Phase 6 — General bioclimatic indices
+#### Phase 6 — General bioclimatic indices — 🟡 GDD/Winkler + precipitation done (Sept 2026)
 
-*Depends on Phase 1 (multi-variable) for the historical baseline version;
-depends on Phase 2's data-resolution decision for the future version.*
+*Depended on Phase 1 (multi-variable) for the historical baseline version
+and Phase 2's data-resolution decision for the future version - both done.*
 
 Two-tier structure, as previously agreed:
 
@@ -455,6 +455,60 @@ Two-tier structure, as previously agreed:
   balance/PET-based indicators.
 - Implement and validate against the historical baseline first (data
   already available), before requiring future data.
+
+**Done:**
+
+- `src/bioclimatic_indices.py` (new): `calculate_growing_degree_days`
+  (monthly-approximation GDD, parameterised by base temperature and
+  season months) and `calculate_growing_season_precipitation`. Both
+  are deliberately generic over their input - the same function works
+  on Phase 1's historical monthly climatology
+  (`value_column="mean_value"`, `group_columns=["municipality"]`) or
+  Phase 4/5's ensemble/anomaly output (`value_column="ensemble_mean"`,
+  `group_columns=["municipality", "scenario", "period"]`), so no
+  separate "future version" of this code is needed once real future
+  data is available.
+- `calculate_winkler_index`: the classic viticulture heat-summation
+  index (Amerine & Winkler, 1944) - GDD with `base_temperature=10.0`
+  and `season_months=range(4, 11)` (April-October), a named fixed-
+  parameter case of the same function. Directly relevant to Douro
+  (vinha, one of the 4 target crops). Deliberately stops at the raw
+  index value - the Winkler region classification (I-V) is a threshold
+  scheme and is not implemented here, consistent with Phase 7's rule
+  of never inventing a threshold ahead of agronomist confirmation.
+- Sanity-checked against the user's real Phase 4 ensemble values for
+  Alijó (ssp585, 2041-2070): Winkler Index ≈ 2151, a plausible value
+  for a warm future scenario in a region already known as a warm wine
+  region historically - not the kind of implausible number that would
+  indicate a formula error.
+- `tests/test_bioclimatic_indices.py` (new, 9 tests, synthetic
+  fixtures only): basic GDD arithmetic, negative degree-days clipped
+  to zero rather than allowed to cancel out warmer months, custom
+  base/season parameters, the Winkler wrapper matching its equivalent
+  direct GDD call, growing-season precipitation summing only the
+  requested months, groups (e.g. two scenarios) kept separate rather
+  than blended, and the three error cases (missing column, invalid
+  month, empty season selection).
+
+**Explicitly NOT done (out of Tier 1's realistic scope given monthly-
+only data):**
+
+- **Frost days and extreme-heat days** need daily minimum/maximum
+  temperatures to count days crossing a threshold - not computable
+  from monthly means. This is exactly the frost/chilling-sensitive
+  gap flagged when the monthly-vs-daily trade-off was decided (docs/04
+  Section 3), not a new limitation.
+- **Water balance/PET-based indicators** need `pet`, one of
+  `climate.toml`'s `[variables].optional` variables, whose unit
+  conversion is not yet confirmed (`CHELSA_VARIABLE_UNITS` in
+  `src/climate_processing.py` only covers `tas`/`tasmin`/`tasmax`/`pr`
+  today) - implementing this without a confirmed conversion would risk
+  silently applying the wrong unit, which the project's existing
+  pattern explicitly refuses to do.
+
+**Deliverable:** ✅ done for GDD/Winkler Index and growing-season
+precipitation - both work against historical data today and will work
+unchanged against real future/ensemble data once available.
 
 #### Phase 7 — Crop-specific indices
 
