@@ -144,7 +144,7 @@ locally (same 1981–2010 baseline, same Douro region) and run through
 tests prove the logic is correct, not that the real CHELSA files match
 the expected naming/unit assumptions.
 
-#### Phase 2 — Future data acquisition — 🟡 URL/path and dims/scale-factor fixed (Sept 2026), pending one final real-server confirmation
+#### Phase 2 — Future data acquisition — ✅ done, confirmed against the real CHELSA server (Sept 2026)
 
 *Unblocked: the user adopted the Section 3 proposal (monthly CHELSA v2.1,
 5 GCMs) as the working assumption to build against, pending final
@@ -226,42 +226,50 @@ general property of the rasterio/GDAL backend (not something specific
 to the one synthetic file tested), so it is trusted to hold for the
 real CHELSA server too.
 
-**Explicitly NOT done — do not treat this as fully validated:**
+**Confirmed against the real server (Sept 2026):** the user re-ran
+`scripts/validate_future_acquisition.py` locally after the dims/scale-
+factor fix (third real run — the first two are what drove the two
+fixes above) and both loaders succeeded cleanly against Vila Real's
+bbox, July:
 
-- **Confirmation against a real download, with the fixes above, is
-  still pending.** The synthetic-raster test proves the *logic* is
-  right; it does not prove CHELSA's real files carry the same embedded
-  scale/offset tags (very likely, given the local pre-downloaded
-  rasters already work this way, but not yet directly observed through
-  this remote code path).
+- **Historical** (`tas`, 1981–2010): 289.3–295.7 K (≈16.2–22.6 °C) —
+  plausible for July in the Vila Real area.
+- **Future** (`tas`, MRI-ESM2-0, ssp370, 2041–2070): 292.5–299.0 K
+  (≈19.4–25.9 °C) — mean ≈3.3 °C warmer than the historical mean, a
+  physically sensible mid-century warming signal for a high-emissions
+  SSP.
+- Both results' attrs match CHELSA's own published metadata exactly
+  (`cf_standard_name: air_temperature`, the official CHELSA v2.1
+  citations, `forcing_source_id: MRI-ESM2-0`,
+  `forcing_experiment_id: ssp370`), independently confirming the
+  URL/path, dims and scale-factor fixes are all correct — not just
+  internally consistent.
+
+This closes out the three-round real-world feedback loop: (1) guessed
+URL → `FileNotFoundError` → fixed host/path from a real directory
+listing; (2) fixed URL, wrong dims assumed → `KeyError` → fixed dims/
+scale-factor from a local synthetic-raster investigation; (3) both
+fixes → clean success with plausible, metadata-consistent values.
+
+**Still open (does not block Phase 3, address opportunistically):**
+
 - Raw future data persistence under `data/raw/future/...` (the
   directory convention already exists in `climate_paths.py`, but no
-  download has actually been run to populate it).
+  download has actually been run to populate it — Phase 3 will do this
+  as part of looping over the full GCM list).
+- Minor: `xarray`/`dask` prints a `UserWarning` about the loaders'
+  default `chunks={"x": 500, "y": 500}` not aligning with the GeoTIFF's
+  internal tiling ("could degrade performance"). Harmless for the
+  small bbox subsets acquired so far; worth revisiting if Phase 3's
+  full-region, multi-GCM loop turns out slow.
 
-**Next validation step (needs real network access, i.e. not this
-session):** `scripts/validate_future_acquisition.py` now runs both
-loaders — one small, fast download each (Vila Real bbox, one month) —
-printing the requested URLs, success/failure, and (on success) the
-resulting data variable names, value ranges and attrs, with guidance on
-whether those values match expectations. Run it locally:
+**Deliverable:** ✅ one confirmed future climatology cell (Douro-area
+bbox, `tas`, MRI-ESM2-0, SSP3-7.0, 2041–2070), spot-checked against
+plausible values for the region — done above.
 
-```powershell
-python -m scripts.validate_future_acquisition
-```
+#### Phase 3 — Multi-GCM processing — ⬜ not started, unblocked
 
-Two real runs from the user's machine already drove this fix: the
-first got a real `FileNotFoundError` (wrong host/path — fixed by
-browsing the CHELSA server manually), the second got the `KeyError`
-above (wrong dims — fixed as described). One more real run should now
-come back clean on both loaders; if it doesn't, send the exact output.
-
-**Deliverable once validated:** one confirmed future climatology cell
-(e.g. Douro, `tas`, one GCM, SSP3-7.0, 2041–2070), spot-checked against
-plausible values for the region.
-
-#### Phase 3 — Multi-GCM processing
-
-*Depends on Phase 2.*
+*Depended on Phase 2, which is now done.*
 
 - Loop Phase 2's acquisition over the full confirmed GCM list.
 - Preserve each GCM's result individually (already the intent of
@@ -409,7 +417,8 @@ Track B (engineering)              ▼   ▼          ▼             │
   Phase 1: multi-variable pipeline (now, no blocker)            │
        │                                                        │
        ▼                                                        │
-  Phase 2: future acquisition ◄───────────────────(needs A.1/A.2)
+  Phase 2: future acquisition (done, built+confirmed against the
+           Section 3 proposal — still needs A.1/A.2 sign-off to lock in)
        │
        ▼
   Phase 3: multi-GCM → Phase 4: ensemble → Phase 5: anomalies
@@ -431,9 +440,17 @@ Track B (engineering)              ▼   ▼          ▼             │
 ```
 
 **What can start today, with zero new decisions from the professor:**
-Phase 1 (multi-variable pipeline), the synthetic-fixture parts of Phase 4
-(ensemble arithmetic), and Phase 10's Beira Interior extension (same
-country, same data source).
+Phase 1 (multi-variable pipeline), Phase 2 (now done — see its section
+above), Phase 3 onward built against the Section 3 proposal, the
+synthetic-fixture parts of Phase 4 (ensemble arithmetic), and Phase
+10's Beira Interior extension (same country, same data source).
 
-**What is blocked until Track A resolves:** Phase 2 onward for anything
-that touches real future/GCM data, and Phase 7's exact index thresholds.
+**What is blocked until Track A resolves:** nothing technically — Phase
+2 proved the Section 3 proposal (monthly CHELSA v2.1, 5 GCMs) works
+end-to-end against the real server, so engineering can keep proceeding
+against it. What's still open is the professor's formal sign-off on
+that dataset/GCM choice (A.1/A.2) — if it changes, only
+`build_chelsa_future_climatology_url`/`load_chelsa_future_monthly_subset`
+and `config/climate.toml`'s `[future]`/`[models]` need to change, not
+Phases 3 onward's logic — and Phase 7's exact index thresholds
+(A.3), which still blocks crop-specific index work specifically.
