@@ -231,6 +231,48 @@ combines multiple NUTS III names into one region; `--region <slug>` on
 additionally require a Spanish administrative-boundary source (not part
 of this codebase yet) before the same mechanism can be used for them.
 
+**Update (Sept 2026):** the professor's sketch confirmed the platform
+should show all 5 intervention zones at once (3 Portuguese NUTS III
+units - Douro, Terras de Trás-os-Montes, Beira Interior - plus 2 Spanish
+NUTS II units - Castilla y León, Extremadura, as whole autonomous
+communities, not subdivided by municipality), clickable to drill into a
+distribution chart. That is a different shape from this section's
+one-region-at-a-time dropdown, and is deferred until the Spain boundary
+data below is available and the zone map itself is redesigned - tracked
+in `docs/04`.
+
+The Spanish administrative-boundary source is now identified: Eurostat's
+GISCO NUTS boundaries dataset (pan-European, so it uses the same NUTS
+convention across Portugal and Spain - unlike CAOP, which is Portugal-
+only). This sandbox's network policy cannot reach `ec.europa.eu`/GISCO
+(the same restriction already described in Section 3 for CHELSA), so the
+file must be downloaded locally and placed under
+`data/raw/boundaries/`, the same "download locally, then process" pattern
+used throughout this project.
+
+Boundary-processing utilities for it already exist and are tested
+(`src/gisco_boundary_processing.py`, `tests/test_gisco_boundary_processing.py`),
+mirroring `src/boundary_processing.py`'s conventions but keyed by the
+GISCO layer's `NUTS_ID` code (e.g. `"ES41"`) rather than by name, since
+`NUTS_ID` is the stable Eurostat identifier and the `NUTS_NAME` column's
+exact spelling can vary by file/language. Once the GISCO file is
+downloaded, run this once, locally, to find the exact `NUTS_ID` codes for
+Castilla y León and Extremadura:
+
+```powershell
+python -m scripts.inspect_gisco_boundaries data/raw/boundaries/<gisco-file> --country ES --level 2
+```
+
+This prints every Spanish NUTS II region's `(NUTS_ID, NUTS_NAME)` pair so
+the two needed codes can be read off directly, without guessing them.
+`get_regions_by_nuts_id` (`src/gisco_boundary_processing.py`) then loads
+just those two regions and reprojects them to `EPSG:4326`, ready to be
+wired into the zone-map redesign once that work starts. Zonal-statistics
+aggregation of CHELSA rasters over these whole-region polygons (rather
+than per-municipality, as Portugal's pipeline does) is not yet
+implemented - that is part of the deferred zone-map work, not this
+boundary-loading step.
+
 ---
 
 ### 8. Testing
@@ -278,8 +320,11 @@ This does not replace running the pipeline against real data locally.
 - Douro is the only region with real data; Beira Interior has an
   inferred (not yet officially confirmed) `nuts3_names` and no CHELSA/
   CAOP data run against it yet (see Section 7); Castilla y León and
-  Extremadura need a Spanish boundary source that doesn't exist in this
-  codebase yet.
+  Extremadura need a Spanish boundary source - identified as Eurostat
+  GISCO (see Section 7 update) - which still needs to be downloaded
+  locally and inspected for its exact `NUTS_ID` codes before the
+  already-built `src/gisco_boundary_processing.py` utilities can be
+  pointed at real data.
 - No CSV/GeoTIFF export from the UI yet (raised as an open question in
   `docs/02`, item 44).
 - The OpenStreetMap basemap requires internet access at runtime; the
