@@ -33,13 +33,15 @@ def build_pilot_feature_collection(
         Must contain a 'municipio' column and be in EPSG:4326.
 
     monthly_df : pandas.DataFrame
-        Must contain 'municipality', 'month', 'mean_celsius',
-        as returned by the existing regional climate pipeline.
+        Must contain 'municipality', 'month', 'mean_value', as
+        returned by the generic climate pipeline
+        (src/climate_pipeline.py's process_nuts3_climatology /
+        process_multi_nuts3_climatology).
 
     annual_df : pandas.DataFrame
-        Must contain 'municipality', 'mean_celsius', 'variable',
-        'period', 'source', as returned by the existing regional
-        climate pipeline.
+        Must contain 'municipality', 'mean_value', 'variable',
+        'period', 'source', as returned by the generic climate
+        pipeline.
 
     Returns
     -------
@@ -65,7 +67,7 @@ def build_pilot_feature_collection(
         name: (
             group
             .sort_values("month")
-            .set_index("month")["mean_celsius"]
+            .set_index("month")["mean_value"]
         )
         for name, group in monthly_df.groupby("municipality")
     }
@@ -104,7 +106,7 @@ def build_pilot_feature_collection(
             "period": annual_row["period"],
             "source": annual_row["source"],
             "annual_mean_celsius": round(
-                float(annual_row["mean_celsius"]), 3
+                float(annual_row["mean_value"]), 3
             ),
             "monthly_mean_celsius": [
                 round(float(monthly_series.loc[month]), 3)

@@ -56,7 +56,7 @@ In priority order (blocks the most downstream work first):
 | 1 | **Daily vs. monthly future data.** Is the intended future dataset CHELSA-ISIMIP3b (daily, used by MONTEVITIS) or the CHELSA v2.1 future climatologies (monthly)? | Frost days, GDD, chilling hours and most bioclimatic indices need daily data. Building the acquisition layer against the wrong product means rebuilding it. | **Proposal drafted (Sept 2026): monthly.** Recorded in `config/climate.toml` `[future]` (`temporal_resolution = "monthly"`, `dataset = "CHELSA-climatologies-v2.1-CMIP6"`), explicitly marked as pending professor confirmation. Rationale and the frost/chilling trade-off this implies are in Section 3 below. See `docs/02` §4. |
 | 2 | **GCM set.** The 5 GCMs standardised by CHELSA v2.1, or the 9 used by MONTEVITIS (CHELSA-ISIMIP3b)? | Directly tied to decision 1 — these may be different underlying products, not just a longer list. Determines storage/compute scope (~2x). | **Proposal drafted (Sept 2026): the 5 CHELSA v2.1 GCMs** (GFDL-ESM4, IPSL-CM6A-LR, MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL), consistent with decision 1. Recorded in `config/climate.toml` `[models].gcms`, pending confirmation. See `docs/02` §7. |
 | 3 | **Confirm SSPs and periods** (SSP1-2.6/3-7.0/5-8.5; 2011–2040/2041–2070/2071–2100) | Already provisional in `climate.toml`; low risk, but should be explicitly signed off before large downloads | Unchanged from the original proposal — still pending sign-off. See `docs/02` §5–6. |
-| 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase F/G below; requires literature review + agronomist validation, not just a research team's yes/no | Not started. See `docs/02` §11–12. |
+| 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase 7/8 below; requires literature review + agronomist validation, not just a research team's yes/no | **Update (Sept 2026, professor meeting): the professor will calculate the crop-specific indices himself and deliver them to the user** — not something this codebase computes from scratch. Changes Phase 7's shape: from "implement each index's formula" to "ingest and display the professor's delivered values" (format/schema TBD once the user shares what he delivers). Phase 6's generic Tier-1 indices (GDD/Winkler Index, already built) stay useful as an independent cross-check, not a substitute. |
 | 5 | **Scope confirmation:** does the researcher's responsibility include the socioeconomic diagnosis, and which territory (Douro only vs. all four regions) for this stage | Lower engineering impact, but affects prioritisation | Partially resolved in conversation: Douro is the pilot, architecture built to extend afterwards (see Phase 10). Socioeconomic-diagnosis scope: still open. |
 
 **Recommended action:** decisions 1–3 now have a concrete drafted proposal (Section 3) ready to take to the professor as a single package — present it as a proposal, not a fait accompli. Decision 4 can start in parallel as a literature-review task (see Phase 7).
@@ -70,6 +70,29 @@ worse than building against a documented, reasoned proposal that is
 cheap to adjust if the professor pushes back (see Section 3's closing
 argument about the dataset being a config value, not something baked
 into the pipeline shape).
+
+**Update (Sept 2026, professor meeting):** the professor met with the
+user and sketched part of the platform's visual architecture (mockup
+to follow). Two things from that meeting:
+
+- **Decision 1–2 (dataset/GCMs) is still open** — the professor said he
+  is still reviewing which dataset to use. No change to the "proposal,
+  not confirmed" status above; still safe to keep building against it
+  (config value, cheap to swap), but do not treat it as settled.
+- **Decision 4 (index list/thresholds) has a new answer, not just a
+  status update: the professor will calculate the crop-specific
+  bioclimatic indices himself and hand the results to the user.**
+  This changes Phase 7's job from "implement each index's formula
+  once thresholds are confirmed" to "ingest whatever the professor
+  delivers and get it onto the platform" — closer to Phase 9
+  (platform integration) than to new scientific computation. Don't
+  build crop-specific index formulas ahead of seeing what format the
+  professor's delivery takes.
+
+The mockup, once shared, should clarify how the professor wants the
+platform laid out — treat it as the concrete spec for Phase 9's
+remaining work (variable/index selectors, layers, panel layout),
+overriding this doc's own guesses where they conflict.
 
 ---
 
@@ -443,10 +466,10 @@ picture).
 `python -m scripts.build_anomaly_climatology <path to a Phase 4 ensemble CSV>`
 once real Phase 3/4 data is available for a region/variable.
 
-#### Phase 6 — General bioclimatic indices
+#### Phase 6 — General bioclimatic indices — 🟡 GDD/Winkler + precipitation done (Sept 2026)
 
-*Depends on Phase 1 (multi-variable) for the historical baseline version;
-depends on Phase 2's data-resolution decision for the future version.*
+*Depended on Phase 1 (multi-variable) for the historical baseline version
+and Phase 2's data-resolution decision for the future version - both done.*
 
 Two-tier structure, as previously agreed:
 
@@ -456,9 +479,80 @@ Two-tier structure, as previously agreed:
 - Implement and validate against the historical baseline first (data
   already available), before requiring future data.
 
-#### Phase 7 — Crop-specific indices
+**Done:**
 
-*Depends on Phase 6 and on Track A decision 4 (index list + thresholds).*
+- `src/bioclimatic_indices.py` (new): `calculate_growing_degree_days`
+  (monthly-approximation GDD, parameterised by base temperature and
+  season months) and `calculate_growing_season_precipitation`. Both
+  are deliberately generic over their input - the same function works
+  on Phase 1's historical monthly climatology
+  (`value_column="mean_value"`, `group_columns=["municipality"]`) or
+  Phase 4/5's ensemble/anomaly output (`value_column="ensemble_mean"`,
+  `group_columns=["municipality", "scenario", "period"]`), so no
+  separate "future version" of this code is needed once real future
+  data is available.
+- `calculate_winkler_index`: the classic viticulture heat-summation
+  index (Amerine & Winkler, 1944) - GDD with `base_temperature=10.0`
+  and `season_months=range(4, 11)` (April-October), a named fixed-
+  parameter case of the same function. Directly relevant to Douro
+  (vinha, one of the 4 target crops). Deliberately stops at the raw
+  index value - the Winkler region classification (I-V) is a threshold
+  scheme and is not implemented here, consistent with Phase 7's rule
+  of never inventing a threshold ahead of agronomist confirmation.
+- Sanity-checked against the user's real Phase 4 ensemble values for
+  Alijó (ssp585, 2041-2070): Winkler Index ≈ 2151, a plausible value
+  for a warm future scenario in a region already known as a warm wine
+  region historically - not the kind of implausible number that would
+  indicate a formula error.
+- `tests/test_bioclimatic_indices.py` (new, 9 tests, synthetic
+  fixtures only): basic GDD arithmetic, negative degree-days clipped
+  to zero rather than allowed to cancel out warmer months, custom
+  base/season parameters, the Winkler wrapper matching its equivalent
+  direct GDD call, growing-season precipitation summing only the
+  requested months, groups (e.g. two scenarios) kept separate rather
+  than blended, and the three error cases (missing column, invalid
+  month, empty season selection).
+
+**Explicitly NOT done (out of Tier 1's realistic scope given monthly-
+only data):**
+
+- **Frost days and extreme-heat days** need daily minimum/maximum
+  temperatures to count days crossing a threshold - not computable
+  from monthly means. This is exactly the frost/chilling-sensitive
+  gap flagged when the monthly-vs-daily trade-off was decided (docs/04
+  Section 3), not a new limitation.
+- **Water balance/PET-based indicators** need `pet`, one of
+  `climate.toml`'s `[variables].optional` variables, whose unit
+  conversion is not yet confirmed (`CHELSA_VARIABLE_UNITS` in
+  `src/climate_processing.py` only covers `tas`/`tasmin`/`tasmax`/`pr`
+  today) - implementing this without a confirmed conversion would risk
+  silently applying the wrong unit, which the project's existing
+  pattern explicitly refuses to do.
+
+**Deliverable:** ✅ done for GDD/Winkler Index and growing-season
+precipitation - both work against historical data today and will work
+unchanged against real future/ensemble data once available.
+
+#### Phase 7 — Crop-specific indices — 🔄 redefined (Sept 2026): ingest, not compute
+
+*Depends on Track A decision 4, which now has an answer that changes
+this phase's shape (see the Track A table above).*
+
+**The professor will calculate the crop-specific indices himself and
+deliver the results to the user** — this codebase does not implement
+Winkler/Huglin/Cool Night/Dryness/chilling-requirement formulas for
+crop-specific thresholds. What was planned below is superseded by
+whatever format the professor's delivery takes; treat this section as
+historical context for the reasoning (crop order, index names, "never
+invent a threshold"), not as a build list to execute.
+
+Once the user shares what the professor delivers (a spreadsheet, a
+report, raw values per municipality/period?), the real Phase 7 task is
+to figure out how to ingest it into the pipeline/platform (closer to
+Phase 9 than to new scientific computation) - format TBD.
+
+<details>
+<summary>Original plan (superseded, kept for context)</summary>
 
 Recommended crop order — vinha first, because it has the most direct
 precedent (MONTEVITIS, CITAB/Hélder Fraga's own published methodology):
@@ -473,6 +567,8 @@ Each index: implement, cite its literature source, and flag its threshold
 values as `pending validation` until the agronomy team confirms them —
 never invent a threshold.
 
+</details>
+
 #### Phase 8 — Agroclimatic zoning
 
 *Depends on Phase 7 and on thresholds being confirmed (not just implemented).*
@@ -483,10 +579,10 @@ never invent a threshold.
 - Produce current-suitability zoning first (baseline only), then
   future-suitability and suitability-change once Phases 2–5 are in place.
 
-#### Phase 9 — Platform integration
+#### Phase 9 — Platform integration — 🟡 first slice done (Sept 2026): scenario/period selector, ensemble + anomaly view
 
-*Depends on whichever of Phases 3–8 is ready; can be done incrementally,
-one layer at a time, rather than as one big-bang release.*
+*Depends on whichever of Phases 3–8 is ready; done incrementally, one
+layer at a time, rather than as one big-bang release.*
 
 - Extend `pilot_export.py`/`api/main.py`/`web/` to add: SSP + period +
   variable selectors, ensemble mean + uncertainty band display, anomaly
@@ -496,8 +592,81 @@ one layer at a time, rather than as one big-bang release.*
 - The **region** axis of this is already done (Phase 10, below) — the
   platform now has a working selector pattern (`GET /api/pilot` listing
   built regions, a dropdown that reloads the map/panel/legend on
-  change). The same pattern is the template for the variable/period/SSP
-  selectors this phase still needs to add.
+  change). The same pattern is now also the template used below for the
+  period/scenario selector.
+
+**Done (first slice — scenario/period, ensemble mean, anomaly view):**
+
+- `src/future_pilot_export.py` (new): `build_future_pilot_feature_collection`
+  converts one variable/scenario/period slice of Phase 5's anomaly
+  output (which already carries Phase 4's ensemble values) into a
+  GeoJSON `FeatureCollection`, mirroring `pilot_export.py`'s shape for
+  the historical baseline — same static-file architecture, no live
+  computation in the API. Reuses `calculate_annual_climatology_for_regions`
+  (the historical pipeline's own days-weighted annual aggregation) so
+  the annual figure is computed the same way for both.
+- `scripts/build_future_pilot_data.py` (new): takes a Phase 4 ensemble
+  CSV, recomputes the historical baseline the same way
+  `scripts/build_anomaly_climatology.py` does, and writes one GeoJSON/
+  metadata pair per scenario/period found in the CSV to
+  `data/processed/pilot/future/`.
+- `api/main.py`: `GET /api/pilot/{region}/future` (lists built
+  variable/scenario/period combinations), `GET
+  /api/pilot/{region}/future/{variable}/{scenario}/{period}` and
+  `.../meta`. Variable/scenario/period are validated against
+  `config/climate.toml` before ever being used to build a file path —
+  the same allow-list principle already applied to the region slug.
+- `web/`: a period selector next to the region selector
+  (`index.html`/`app.js`), defaulting to "Histórico (1981-2010)" with
+  one option per available future scenario/period, fetched from the
+  new `/future` listing endpoint. Selecting a future option re-renders
+  the same map/legend/panel components used for historical data — the
+  future GeoJSON's `annual_ensemble_mean`/`monthly_ensemble_mean`
+  properties are normalised client-side to the historical property
+  names (`annual_mean_celsius`/`monthly_mean_celsius`) so the existing,
+  already-tested rendering code (colour scale, legend, chart with
+  hover/keyboard interaction) needed no changes. The panel additionally
+  shows the anomaly vs. the historical baseline (e.g. "Cenário ssp585 ·
+  vs. histórico (1981-2010): +3.50 °C") when viewing future data.
+- Verified end-to-end with a headless browser (Chromium via Playwright)
+  against synthetic historical + future fixture data for two
+  municipalities: default historical view loads correctly, the future
+  option appears in the selector, switching to it updates the banner
+  (scenario, period, GCM count), re-colours the map, and the panel
+  shows the correct annual value and anomaly line; switching back
+  behaves correctly. Screenshot confirms the map, legend, panel and
+  chart all render as expected. The only console noise was the
+  sandbox's network policy blocking OpenStreetMap base-map tiles (not
+  a code issue — tiles will load normally outside this sandbox) and a
+  pre-existing, unrelated `/favicon.ico` 404.
+- `tests/test_future_pilot_export.py` (7 tests) and additions to
+  `tests/test_pilot_api.py` (7 tests) - all synthetic fixtures, no
+  network or real CHELSA/CAOP data needed.
+- **Found and fixed a real, currently-active bug while starting this
+  phase:** `pilot_export.py`'s `build_pilot_feature_collection` still
+  expected a `mean_celsius` column, but Phase 1's generalisation
+  changed what `scripts/build_pilot_region.py` actually calls to
+  return `mean_value` instead. A real run of `build_pilot_region.py`
+  today would have raised `KeyError: 'mean_celsius'` — masked because
+  `tests/test_pilot_export.py`'s fixtures built `mean_celsius`
+  DataFrames directly rather than going through the real pipeline.
+  Fixed and the test fixtures corrected to match reality (see that
+  PR for the full explanation).
+
+**Explicitly NOT done yet:**
+
+- Uncertainty band display (min/max from Phase 4's ensemble output are
+  in the GeoJSON's source anomaly data but not yet surfaced in the UI).
+- Index layers (Phase 6's GDD/Winkler Index) and the zoning layer
+  (Phase 8) — natural next additions to this same pattern.
+- A real run of `scripts/build_future_pilot_data.py` against real data
+  — the verification above used synthetic fixtures written directly to
+  the expected file locations, not a real CSV → GeoJSON build. Next
+  step once the user's full download + ensemble/anomaly CSVs are ready.
+
+**Deliverable:** 🟡 done for the scenario/period selector + ensemble +
+anomaly view (verified end-to-end with synthetic data); pending one
+real run against the user's actual future data.
 
 #### Phase 10 — Scale beyond Douro — 🟡 infrastructure done (Sept 2026), Beira Interior data pending
 

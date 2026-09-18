@@ -251,6 +251,277 @@ function drawMonthlyChart(svg, monthlyValues) {
   });
 }
 
+// Gaussian kernel density estimate over a small set of observed
+// values (e.g. one value per municipality/GCM within a zone) - turns
+// discrete observations into the smooth distribution curve the
+// professor asked for (like a normal-distribution plot), rather than
+// a discrete-bar histogram.
+function gaussianKernelDensity(values, gridSize = 120) {
+  const n = values.length;
+  const mean = values.reduce((sum, v) => sum + v, 0) / n;
+  const variance =
+    values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
+  const stdDev = Math.sqrt(variance) || 1;
+
+  // Silverman's rule of thumb for kernel bandwidth.
+  const bandwidth = 1.06 * stdDev * Math.pow(n, -1 / 5) || 1;
+
+  const dataMin = Math.min(...values);
+  const dataMax = Math.max(...values);
+  const pad = (dataMax - dataMin) * 0.25 || bandwidth * 3;
+  const gridMin = dataMin - pad;
+  const gridMax = dataMax + pad;
+
+  const grid = [];
+  for (let i = 0; i < gridSize; i += 1) {
+    const x = gridMin + ((gridMax - gridMin) * i) / (gridSize - 1);
+    const density =
+      values.reduce((sum, v) => {
+        const u = (x - v) / bandwidth;
+        return sum + Math.exp(-0.5 * u * u);
+      }, 0) / (n * bandwidth * Math.sqrt(2 * Math.PI));
+    grid.push({ x, density });
+  }
+
+  return grid;
+}
+
+// Draws a smooth distribution curve (Gaussian KDE) for a set of
+// observed values, with the same interaction conventions as
+// drawMonthlyChart (crosshair, value-leads tooltip, keyboard nav) and
+// a rug plot along the axis showing each real observed value under
+// the smoothed curve. What "values" contains (one per municipality
+// within a zone? one per GCM? something else?) is not yet confirmed
+// with the professor - this function only draws whatever array it is
+// given.
+function drawDistributionChart(svg, values, options = {}) {
+  svg.innerHTML = "";
+
+  if (!values || values.length === 0) {
+    return;
+  }
+
+  const width = 300;
+  const height = 160;
+  const padding = { top: 10, right: 12, bottom: 24, left: 12 };
+
+  const grid = gaussianKernelDensity(values);
+  const maxDensity = Math.max(...grid.map((p) => p.density)) || 1;
+
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  const gridMinX = grid[0].x;
+  const gridMaxX = grid[grid.length - 1].x;
+
+  const xFor = (x) =>
+    padding.left + ((x - gridMinX) / (gridMaxX - gridMinX)) * plotWidth;
+
+  const yFor = (density) =>
+    padding.top + plotHeight - (density / maxDensity) * plotHeight;
+
+  const ns = "http://www.w3.org/2000/svg";
+
+  const axis = document.createElementNS(ns, "line");
+  axis.setAttribute("x1", padding.left);
+  axis.setAttribute("y1", height - padding.bottom);
+  axis.setAttribute("x2", width - padding.right);
+  axis.setAttribute("y2", height - padding.bottom);
+  axis.setAttribute("stroke", "#c7ccd3");
+  svg.appendChild(axis);
+
+  const curvePoints = grid
+    .map((p) => `${xFor(p.x)},${yFor(p.density)}`)
+    .join(" ");
+
+  const areaPolygon =
+    `${padding.left},${height - padding.bottom} ${curvePoints} ` +
+    `${width - padding.right},${height - padding.bottom}`;
+
+  const area = document.createElementNS(ns, "polygon");
+  area.setAttribute("points", areaPolygon);
+  area.setAttribute("fill", "#2f6fb2");
+  area.setAttribute("fill-opacity", "0.12");
+  svg.appendChild(area);
+
+  const curve = document.createElementNS(ns, "polyline");
+  curve.setAttribute("points", curvePoints);
+  curve.setAttribute("fill", "none");
+  curve.setAttribute("stroke", "#2f6fb2");
+  curve.setAttribute("stroke-width", "2.5");
+  svg.appendChild(curve);
+
+  // Rug plot: one tick per real observed value, under the smoothed
+  // curve, so the underlying data isn't hidden by the smoothing.
+  values.forEach((v) => {
+    const tick = document.createElementNS(ns, "line");
+    const tx = xFor(v);
+    tick.setAttribute("x1", tx);
+    tick.setAttribute("x2", tx);
+    tick.setAttribute("y1", height - padding.bottom);
+    tick.setAttribute("y2", height - padding.bottom + 5);
+    tick.setAttribute("stroke", "#5b6675");
+    tick.setAttribute("stroke-width", "1");
+    svg.appendChild(tick);
+  });
+
+  const crosshair = document.createElementNS(ns, "line");
+  crosshair.setAttribute("y1", padding.top);
+  crosshair.setAttribute("y2", height - padding.bottom);
+  crosshair.setAttribute("stroke", "#9aa3af");
+  crosshair.setAttribute("stroke-width", "1");
+  crosshair.setAttribute("visibility", "hidden");
+  svg.appendChild(crosshair);
+
+  const highlight = document.createElementNS(ns, "circle");
+  highlight.setAttribute("r", "4.5");
+  highlight.setAttribute("fill", "#2f6fb2");
+  highlight.setAttribute("stroke", "#ffffff");
+  highlight.setAttribute("stroke-width", "1.5");
+  highlight.setAttribute("visibility", "hidden");
+  svg.appendChild(highlight);
+
+  const tooltipGroup = document.createElementNS(ns, "g");
+  tooltipGroup.setAttribute("visibility", "hidden");
+
+  const tooltipBg = document.createElementNS(ns, "rect");
+  tooltipBg.setAttribute("rx", "3");
+  tooltipBg.setAttribute("fill", "#1c2430");
+  tooltipGroup.appendChild(tooltipBg);
+
+  const tooltipValue = document.createElementNS(ns, "text");
+  tooltipValue.setAttribute("font-size", "11");
+  tooltipValue.setAttribute("font-weight", "700");
+  tooltipValue.setAttribute("fill", "#ffffff");
+  tooltipValue.setAttribute("text-anchor", "middle");
+  tooltipGroup.appendChild(tooltipValue);
+
+  const tooltipLabel = document.createElementNS(ns, "text");
+  tooltipLabel.setAttribute("font-size", "8.5");
+  tooltipLabel.setAttribute("fill", "#c7ccd3");
+  tooltipLabel.setAttribute("text-anchor", "middle");
+  tooltipGroup.appendChild(tooltipLabel);
+
+  svg.appendChild(tooltipGroup);
+
+  const hitArea = document.createElementNS(ns, "rect");
+  hitArea.setAttribute("x", padding.left);
+  hitArea.setAttribute("y", padding.top);
+  hitArea.setAttribute("width", plotWidth);
+  hitArea.setAttribute("height", plotHeight);
+  hitArea.setAttribute("fill", "transparent");
+  svg.appendChild(hitArea);
+
+  const unit = options.unit || "";
+
+  const nearestGridIndexForDataX = (x) => {
+    let closest = 0;
+    let closestDist = Infinity;
+    grid.forEach((p, i) => {
+      const d = Math.abs(p.x - x);
+      if (d < closestDist) {
+        closestDist = d;
+        closest = i;
+      }
+    });
+    return closest;
+  };
+
+  const updateAt = (gridIndex) => {
+    const clamped = Math.max(0, Math.min(grid.length - 1, gridIndex));
+    const point = grid[clamped];
+    const px = xFor(point.x);
+    const py = yFor(point.density);
+
+    crosshair.setAttribute("x1", px);
+    crosshair.setAttribute("x2", px);
+    crosshair.setAttribute("visibility", "visible");
+
+    highlight.setAttribute("cx", px);
+    highlight.setAttribute("cy", py);
+    highlight.setAttribute("visibility", "visible");
+
+    const valueText = `${point.x.toFixed(1)}${unit}`;
+    const labelText = "densidade estimada";
+
+    tooltipValue.textContent = valueText;
+    tooltipValue.setAttribute("x", 0);
+    tooltipValue.setAttribute("y", 14);
+
+    tooltipLabel.textContent = labelText;
+    tooltipLabel.setAttribute("x", 0);
+    tooltipLabel.setAttribute("y", 25);
+
+    const boxWidth =
+      Math.max(valueText.length, labelText.length) * 6 + 12;
+    const boxHeight = 32;
+
+    tooltipBg.setAttribute("x", -boxWidth / 2);
+    tooltipBg.setAttribute("y", -2);
+    tooltipBg.setAttribute("width", boxWidth);
+    tooltipBg.setAttribute("height", boxHeight);
+
+    let tooltipY = py - boxHeight - 6;
+    if (tooltipY < 0) {
+      tooltipY = py + 10;
+    }
+
+    const tooltipX = Math.max(
+      boxWidth / 2,
+      Math.min(width - boxWidth / 2, px)
+    );
+
+    tooltipGroup.setAttribute(
+      "transform",
+      `translate(${tooltipX}, ${tooltipY})`
+    );
+    tooltipGroup.setAttribute("visibility", "visible");
+  };
+
+  const hide = () => {
+    crosshair.setAttribute("visibility", "hidden");
+    highlight.setAttribute("visibility", "hidden");
+    tooltipGroup.setAttribute("visibility", "hidden");
+  };
+
+  const nearestGridIndexForClientX = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * width;
+    const relative = (svgX - padding.left) / plotWidth;
+    const dataX = gridMinX + relative * (gridMaxX - gridMinX);
+    return nearestGridIndexForDataX(dataX);
+  };
+
+  hitArea.addEventListener("pointermove", (event) => {
+    updateAt(nearestGridIndexForClientX(event.clientX));
+  });
+  hitArea.addEventListener("pointerleave", hide);
+
+  svg.setAttribute("tabindex", "0");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    "Distribuição de valores do índice selecionado na zona, use as " +
+    "setas para navegar"
+  );
+
+  let focusedIndex = Math.floor(grid.length / 2);
+  svg.addEventListener("focus", () => updateAt(focusedIndex));
+  svg.addEventListener("blur", hide);
+  svg.addEventListener("keydown", (event) => {
+    const step = Math.max(1, Math.floor(grid.length / 20));
+    if (event.key === "ArrowRight") {
+      focusedIndex = Math.min(grid.length - 1, focusedIndex + step);
+      updateAt(focusedIndex);
+      event.preventDefault();
+    } else if (event.key === "ArrowLeft") {
+      focusedIndex = Math.max(0, focusedIndex - step);
+      updateAt(focusedIndex);
+      event.preventDefault();
+    }
+  });
+}
+
 function showPanel(properties) {
   document.getElementById("panel-empty").hidden = true;
   const content = document.getElementById("panel-content");
@@ -262,8 +533,22 @@ function showPanel(properties) {
     `Temperatura média anual (${properties.period}): ` +
     `${properties.annual_mean_celsius.toFixed(2)} °C`;
 
-  document.getElementById("panel-source").textContent =
-    `Fonte: ${properties.source} · variável: ${properties.variable}`;
+  const anomalyEl = document.getElementById("panel-anomaly");
+  if (properties.scenario) {
+    const delta = properties.annual_anomaly_absolute;
+    const sign = delta >= 0 ? "+" : "";
+    anomalyEl.textContent =
+      `Cenário ${properties.scenario} · vs. histórico (1981-2010): ` +
+      `${sign}${delta.toFixed(2)} °C`;
+    anomalyEl.hidden = false;
+  } else {
+    anomalyEl.hidden = true;
+  }
+
+  document.getElementById("panel-source").textContent = properties.scenario
+    ? `Ensemble de ${properties.n_gcms || "vários"} modelos · ` +
+      `variável: ${properties.variable}`
+    : `Fonte: ${properties.source} · variável: ${properties.variable}`;
 
   drawMonthlyChart(
     document.getElementById("panel-chart"),
@@ -313,43 +598,7 @@ function resetPanel() {
   document.getElementById("panel-empty").hidden = false;
 }
 
-async function loadRegion(slug) {
-  const subtitle = document.getElementById("banner-subtitle");
-  const warning = document.getElementById("banner-warning");
-  warning.hidden = true;
-  resetPanel();
-
-  let meta;
-  try {
-    const metaResponse = await fetch(`/api/pilot/${slug}/meta`);
-    if (!metaResponse.ok) {
-      throw new Error(await metaResponse.text());
-    }
-    meta = await metaResponse.json();
-  } catch (err) {
-    subtitle.innerHTML =
-      "Dados do piloto não encontrados. Rode " +
-      `<code>python -m scripts.build_pilot_region --region ${slug}</code> ` +
-      "localmente e reinicie a API.";
-    return;
-  }
-
-  subtitle.innerHTML =
-    `${meta.region_name} · ${meta.dataset} · ` +
-    `variável <strong>${meta.variable}</strong> · ` +
-    `período <strong>${meta.period}</strong> · ` +
-    `metodologia: <strong>${meta.methodology_status}</strong>`;
-
-  if (!meta.future_scenarios_included) {
-    warning.textContent =
-      "Cenários futuros (SSP/GCM) ainda não incluídos — " +
-      "aguardando validação metodológica com o professor.";
-    warning.hidden = false;
-  }
-
-  const geoResponse = await fetch(`/api/pilot/${slug}`);
-  const featureCollection = await geoResponse.json();
-
+function renderFeatureCollection(featureCollection) {
   if (currentGeoLayer) {
     map.removeLayer(currentGeoLayer);
   }
@@ -389,6 +638,147 @@ async function loadRegion(slug) {
   currentLegend.addTo(map);
 }
 
+// Future GeoJSON properties are named differently
+// (annual_ensemble_mean/monthly_ensemble_mean) from the historical
+// ones (annual_mean_celsius/monthly_mean_celsius) that
+// renderFeatureCollection/showPanel already know how to draw. Rather
+// than teaching every render function two naming schemes, normalize
+// once here so the rest of the rendering path stays unchanged.
+function normalizeFutureFeatureCollection(featureCollection) {
+  return {
+    type: "FeatureCollection",
+    features: featureCollection.features.map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        annual_mean_celsius: feature.properties.annual_ensemble_mean,
+        monthly_mean_celsius: feature.properties.monthly_ensemble_mean,
+      },
+    })),
+  };
+}
+
+async function loadFuturePeriodOptions(slug) {
+  const periodSelect = document.getElementById("period-select");
+  periodSelect.innerHTML =
+    '<option value="historical">Histórico (1981-2010)</option>';
+
+  let slices = [];
+  try {
+    const response = await fetch(`/api/pilot/${slug}/future`);
+    slices = await response.json();
+  } catch (err) {
+    slices = [];
+  }
+
+  for (const slice of slices) {
+    const option = document.createElement("option");
+    option.value = `${slice.variable}|${slice.scenario}|${slice.period}`;
+    const scenarioLabel = slice.scenario.toUpperCase();
+    option.textContent =
+      `Futuro · ${scenarioLabel} · ${slice.period} (${slice.variable})`;
+    periodSelect.appendChild(option);
+  }
+
+  periodSelect.disabled = false;
+  periodSelect.value = "historical";
+}
+
+async function loadPeriodData(slug, selection) {
+  const subtitle = document.getElementById("banner-subtitle");
+  resetPanel();
+
+  if (selection === "historical") {
+    await loadHistoricalRegion(slug);
+    return;
+  }
+
+  const [variable, scenario, period] = selection.split("|");
+
+  let meta;
+  try {
+    const metaResponse = await fetch(
+      `/api/pilot/${slug}/future/${variable}/${scenario}/${period}/meta`
+    );
+    if (!metaResponse.ok) {
+      throw new Error(await metaResponse.text());
+    }
+    meta = await metaResponse.json();
+  } catch (err) {
+    subtitle.innerHTML =
+      "Dados futuros não encontrados. Rode " +
+      "<code>python -m scripts.build_future_pilot_data " +
+      "&lt;ensemble.csv&gt;</code> localmente e reinicie a API.";
+    return;
+  }
+
+  subtitle.innerHTML =
+    `${meta.region_name} · ${meta.dataset} · ` +
+    `variável <strong>${meta.variable}</strong> · ` +
+    `cenário <strong>${meta.scenario}</strong> · ` +
+    `período <strong>${meta.period}</strong> · ` +
+    `ensemble de <strong>${meta.gcms.length} GCMs</strong> · ` +
+    `metodologia: <strong>${meta.methodology_status}</strong>`;
+
+  const geoResponse = await fetch(
+    `/api/pilot/${slug}/future/${variable}/${scenario}/${period}`
+  );
+  const featureCollection = await geoResponse.json();
+
+  renderFeatureCollection(
+    normalizeFutureFeatureCollection(featureCollection)
+  );
+}
+
+async function loadHistoricalRegion(slug) {
+  const subtitle = document.getElementById("banner-subtitle");
+  const warning = document.getElementById("banner-warning");
+  warning.hidden = true;
+
+  let meta;
+  try {
+    const metaResponse = await fetch(`/api/pilot/${slug}/meta`);
+    if (!metaResponse.ok) {
+      throw new Error(await metaResponse.text());
+    }
+    meta = await metaResponse.json();
+  } catch (err) {
+    subtitle.innerHTML =
+      "Dados do piloto não encontrados. Rode " +
+      `<code>python -m scripts.build_pilot_region --region ${slug}</code> ` +
+      "localmente e reinicie a API.";
+    return;
+  }
+
+  subtitle.innerHTML =
+    `${meta.region_name} · ${meta.dataset} · ` +
+    `variável <strong>${meta.variable}</strong> · ` +
+    `período <strong>${meta.period}</strong> · ` +
+    `metodologia: <strong>${meta.methodology_status}</strong>`;
+
+  if (!meta.future_scenarios_included) {
+    warning.textContent =
+      "Cenários futuros (SSP/GCM) ainda não incluídos — " +
+      "aguardando validação metodológica com o professor.";
+    warning.hidden = false;
+  }
+
+  const geoResponse = await fetch(`/api/pilot/${slug}`);
+  const featureCollection = await geoResponse.json();
+
+  renderFeatureCollection(featureCollection);
+}
+
+async function loadRegion(slug) {
+  resetPanel();
+
+  const periodSelect = document.getElementById("period-select");
+  periodSelect.value = "historical";
+
+  await loadHistoricalRegion(slug);
+  await loadFuturePeriodOptions(slug);
+}
+
 async function init() {
   initMap();
 
@@ -422,6 +812,11 @@ async function init() {
   select.disabled = false;
 
   select.addEventListener("change", () => loadRegion(select.value));
+
+  const periodSelect = document.getElementById("period-select");
+  periodSelect.addEventListener("change", () => {
+    loadPeriodData(select.value, periodSelect.value);
+  });
 
   await loadRegion(regions[0].slug);
 }
