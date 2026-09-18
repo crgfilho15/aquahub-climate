@@ -101,6 +101,30 @@ def list_available_pilot_regions() -> JSONResponse:
     return JSONResponse(available)
 
 
+ZONES_BUILD_HINT = (
+    "Zone overview not found. Run "
+    "'python -m scripts.build_zone_overview' locally, then restart "
+    "this API."
+)
+
+
+@app.get("/api/pilot/zones")
+def get_zone_overview() -> JSONResponse:
+    """
+    All configured zones with known geometry, for the single all-zones
+    map (see scripts/build_zone_overview.py). Zones without built
+    climate data (e.g. Castilla y León/Extremadura today) are still
+    included if their outline is known, marked "built": false.
+    """
+
+    path = get_pilot_data_dir() / "zones_overview.geojson"
+
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=ZONES_BUILD_HINT)
+
+    return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
+
+
 @app.get("/api/pilot/{region}")
 def get_pilot_geojson(region: str) -> JSONResponse:
     region = _region_slug_or_404(region)

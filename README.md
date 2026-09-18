@@ -23,9 +23,9 @@ The definitive climate datasets and modelling methodology are still under discus
 
 ---
 
-## Interactive pilot platform (v1)
+## Interactive pilot platform (v2)
 
-A first interactive map platform is available, built on the validated baseline climatology pipeline below, with a region selector (Douro is fully validated with real data; more regions can be added via `config/climate.toml`). It intentionally shows only the historical baseline (`tas`, 1981–2010) — future SSP/GCM scenarios are not yet included, pending methodological confirmation (a concrete proposal exists — see `docs/04_roadmap_future_and_bioclimatic_indices.md`).
+An interactive map platform is available, built on the validated baseline climatology pipeline below. Per the professor's confirmed design (Sept 2026), it shows all 5 intervention zones on a single map at once (Douro, Terras de Trás-os-Montes and Beira Interior in Portugal; Castilla y León and Extremadura in Spain), clickable to open a distribution chart, with Cultura/Índice/Período/SSP filters above the map — Cultura/Índice are shown (the 4 confirmed crops) but disabled until the professor delivers real bioclimatic index data. Douro and Terras de Trás-os-Montes are fully validated with real data; Beira Interior needs a CHELSA/CAOP run; the 2 Spanish zones have confirmed boundaries but no climate-data pipeline yet — see `config/climate.toml`.
 
 Full details, architecture rationale and known limitations: `docs/03_pilot_interactive_platform.md`.
 
@@ -33,6 +33,7 @@ Quick start, once `data/raw/` is populated as described below:
 
 ```powershell
 python -m scripts.build_pilot_region
+python -m scripts.build_zone_overview
 uvicorn api.main:app --reload
 # open http://127.0.0.1:8000
 ```
@@ -130,26 +131,24 @@ aquahub-climate/
 │   ├── 03_pilot_interactive_platform.md
 │   └── 04_roadmap_future_and_bioclimatic_indices.md
 │
-├── notebooks/
-│   └── 01_chelsa_exploration.ipynb
-│
 ├── outputs/
 │   ├── figures/
 │   └── tables/
 │
 ├── scripts/
 │   ├── build_pilot_region.py
+│   ├── build_zone_overview.py
 │   ├── build_future_climatology.py
 │   ├── build_ensemble_climatology.py
 │   ├── build_anomaly_climatology.py
 │   ├── build_future_pilot_data.py
+│   ├── inspect_gisco_boundaries.py
 │   └── validate_future_acquisition.py
 │
 ├── src/
 │   ├── bioclimatic_indices.py
 │   ├── boundary_processing.py
 │   ├── climate_acquisition.py
-│   ├── climate_analysis.py
 │   ├── climate_anomalies.py
 │   ├── climate_config.py
 │   ├── climate_ensemble.py
@@ -158,12 +157,13 @@ aquahub-climate/
 │   ├── climate_processing.py
 │   ├── climate_region.py
 │   ├── climate_selection.py
-│   ├── data_io.py
 │   ├── future_climate_experiment.py
 │   ├── future_climate_pipeline.py
 │   ├── future_climate_processing.py
 │   ├── future_pilot_export.py
-│   └── pilot_export.py
+│   ├── gisco_boundary_processing.py
+│   ├── pilot_export.py
+│   └── zone_overview_export.py
 │
 ├── web/
 │   ├── index.html
@@ -188,7 +188,6 @@ Current development environment:
 - Windows
 - Python 3.14
 - VS Code
-- JupyterLab
 - pytest
 
 Main Python libraries:
@@ -198,8 +197,6 @@ Main Python libraries:
 - rasterio
 - rioxarray
 - exactextract
-- matplotlib
-- pyarrow
 - pytest
 
 ---
@@ -511,108 +508,28 @@ area-weighted zonal statistics
 The high-level NUTS III workflow can be executed conceptually as:
 
 ```python
-process_nuts3_temperature(
+process_nuts3_climatology(
     municipalities_gdf=municipalities,
     nuts3_name="Douro",
     chelsa_dir=chelsa_dir,
+    variable="tas",
     period="1981-2010",
 )
 ```
-
----
-
-### `src/climate_analysis.py`
-
-Responsible for analytical operations performed after climate processing.
-
-Currently includes monthly temperature comparison between two regions.
-
-The current difference convention is:
-
-```text
-second region - first region
-```
-
-Therefore:
-
-```text
-positive value
-→ second region is warmer
-
-negative value
-→ first region is warmer
-```
-
-This logic has been validated with automated tests.
-
----
-
-### `src/data_io.py`
-
-Responsible for persistence of processed climate datasets.
-
-Processed climate outputs are currently stored using:
-
-```text
-Parquet
-```
-
-The public saving functions share a common internal persistence implementation to ensure consistent file naming and output behaviour.
-
-Current supported persistence levels include:
-
-- individual municipality;
-- arbitrary municipality batch;
-- administrative region / NUTS III.
 
 ---
 
 ## Processing examples
 
-### One municipality
-
-Conceptually:
-
-```python
-monthly, annual = pipeline.process_municipality_temperature(
-    municipalities_gdf=municipalities,
-    municipality_name="Vila Real",
-    chelsa_dir=chelsa_dir,
-    period="1981-2010",
-)
-```
-
----
-
-### Several municipalities
-
-```python
-monthly, annual = (
-    pipeline.process_multiple_municipalities_temperature(
-        municipalities_gdf=municipalities,
-        municipality_names=[
-            "Vila Real",
-            "Bragança",
-            "Chaves",
-        ],
-        chelsa_dir=chelsa_dir,
-        period="1981-2010",
-    )
-)
-```
-
-The geometries are processed together using the regional processing core.
-
----
-
 ### NUTS III region
 
 ```python
 monthly, annual = (
-    pipeline.process_nuts3_temperature(
+    pipeline.process_nuts3_climatology(
         municipalities_gdf=municipalities,
         nuts3_name="Douro",
         chelsa_dir=chelsa_dir,
+        variable="tas",
         period="1981-2010",
     )
 )
@@ -636,277 +553,15 @@ calculates annual climatologies
 
 ---
 
-## Processed outputs
-
-Current individual municipality files include:
-
-```text
-data/processed/
-├── braganca_tas_annual_1981-2010.parquet
-├── braganca_tas_monthly_1981-2010.parquet
-├── chaves_tas_annual_1981-2010.parquet
-├── chaves_tas_monthly_1981-2010.parquet
-├── vila_real_tas_annual_1981-2010.parquet
-└── vila_real_tas_monthly_1981-2010.parquet
-```
-
-Consolidated municipality outputs include:
-
-```text
-municipalities_tas_monthly_1981-2010.parquet
-municipalities_tas_annual_1981-2010.parquet
-```
-
-Regional NUTS III outputs include:
-
-```text
-nuts3_douro_tas_monthly_1981-2010.parquet
-nuts3_douro_tas_annual_1981-2010.parquet
-```
-
----
-
-## Generated figures
-
-Current figures include:
-
-```text
-outputs/figures/
-├── vila_real_vs_braganca_tas_1981-2010.png
-└── braganca_minus_vila_real_tas_1981-2010.png
-```
-
-The Vila Real vs Bragança comparison demonstrated that similar annual climatological means can hide relevant seasonal differences.
-
-For example, the current prototype showed:
-
-```text
-winter
-→ Bragança generally cooler than Vila Real
-
-summer
-→ Bragança generally warmer than Vila Real
-```
-
-The largest monthly difference observed in the current comparison was approximately:
-
-```text
-July: +1.32 °C
-```
-
-for Bragança relative to Vila Real.
-
-The largest negative difference was approximately:
-
-```text
-January: -0.62 °C
-```
-
----
-
 ## Automated tests
 
-The project uses `pytest` for automated validation.
-
-The pytest configuration is stored in:
-
-```text
-pytest.ini
-```
-
-Run the complete test suite from the project root with:
+The project uses `pytest` for automated validation (configuration in `pytest.ini`). Run the complete suite from the project root with:
 
 ```powershell
 pytest -v
 ```
 
-Current test status:
-
-```text
-145 passed, 1 skipped
-```
-
-The skipped test is the pre-existing opt-in remote CHELSA integration check (`AQUAHUB_RUN_REMOTE_TESTS=1`), which requires live network access.
-
-The current test suite covers five main modules.
-
-### Boundary-processing tests
-
-Validated behaviours include:
-
-- single municipality selection;
-- case-insensitive municipality searches;
-- explicit errors for unknown municipalities;
-- multiple-municipality selection;
-- missing municipality detection;
-- NUTS III municipality selection;
-- CRS reprojection.
-
----
-
-### Climate-processing tests
-
-Validated behaviours include:
-
-- annual climatological aggregation;
-- multiple-region annual calculations;
-- calendar-day weighting;
-- protection against mixing multiple municipalities in a single-region function;
-- synthetic raster processing;
-- Kelvin to Celsius conversion;
-- fractional pixel coverage;
-- integration between Rasterio, GeoPandas and exactextract.
-
----
-
-### Climate-analysis tests
-
-Validated behaviours include:
-
-- monthly comparison between regions;
-- correct temperature-difference direction;
-- rejection of DataFrames containing multiple mixed regions.
-
----
-
-### Data-persistence tests
-
-Validated behaviours include:
-
-- municipality Parquet persistence;
-- batch Parquet persistence;
-- regional/NUTS III persistence;
-- correct output file naming;
-- data integrity after saving and reloading.
-
-Temporary directories provided by pytest are used so artificial test outputs do not modify:
-
-```text
-data/processed/
-```
-
----
-
-### Climate-pipeline tests
-
-Validated workflows include:
-
-- individual municipality orchestration;
-- multiple-municipality orchestration;
-- NUTS III orchestration.
-
-Pipeline tests use controlled mocked processing functions so they specifically test workflow coordination without repeatedly loading real CHELSA rasters.
-
----
-
-## Synthetic raster integration tests
-
-The test suite includes real small GeoTIFF files generated dynamically during testing.
-
-One synthetic test uses:
-
-```text
-280 K | 282 K
-284 K | 286 K
-```
-
-and verifies that the northern region returns:
-
-```text
-281 K
-=
-7.85 °C
-```
-
-This validates the integration between:
-
-```text
-Rasterio
-+
-GeoPandas
-+
-exactextract
-+
-temperature conversion
-```
-
-without depending on external CHELSA files.
-
----
-
-## Fractional pixel coverage validation
-
-A second synthetic raster test validates partial pixel coverage.
-
-Example raster:
-
-```text
-280 K | 300 K
-```
-
-The test polygon covers:
-
-```text
-first pixel  → 100%
-second pixel → 50%
-```
-
-Therefore, the expected weighted value is:
-
-```text
-(280 × 1.0 + 300 × 0.5) / 1.5
-
-= 286.666666... K
-```
-
-The automated test confirms that the processing implementation reproduces this expected result.
-
-This directly validates one of the important spatial assumptions of the AquaHub prototype:
-
-**administrative boundaries intersecting climate raster pixels must contribute proportionally according to their covered area.**
-
----
-
-## Test warnings
-
-The current test suite may display a Rasterio warning similar to:
-
-```text
-PendingDeprecationWarning:
-Use `@` matmul instead of `*` mul operator for matrix multiplication
-```
-
-The warning originates from Rasterio's internal transformation implementation and is not currently caused by AquaHub project code.
-
-The tests still complete successfully.
-
-Current status:
-
-```text
-21 passed
-```
-
-The warning is intentionally not suppressed at this stage.
-
----
-
-## Reproducibility validation
-
-The exploratory notebook has been validated using a clean Jupyter kernel.
-
-Validation procedure:
-
-```text
-Restart Kernel
-      ↓
-Run All
-      ↓
-completed without errors
-```
-
-This confirms that the current notebook does not depend on hidden variables retained from previous interactive executions.
-
-During this validation, legacy notebook calls were updated to match the current refactored APIs.
+All suites run without CHELSA, CAOP, GISCO, or network access (synthetic fixtures only), except one pre-existing opt-in remote CHELSA integration check (`AQUAHUB_RUN_REMOTE_TESTS=1`, skipped by default). There is roughly one test module per `src/` module, plus `tests/test_pilot_export.py`, `tests/test_zone_overview_export.py` and `tests/test_pilot_api.py` for the interactive platform's export/API layer.
 
 ---
 
@@ -994,53 +649,13 @@ Municipality-level values represent an interaction and summarisation layer, not 
 
 ## Next technical steps
 
-Short-term technical priorities include:
+Short-term priorities, given what is done vs. still pending confirmation from the research team (see `docs/04_roadmap_future_and_bioclimatic_indices.md` for the full phase-by-phase roadmap):
 
-1. Consolidate the current documented and tested baseline.
-2. Confirm the definitive historical climate dataset with the research team.
-3. Confirm the definitive future climate dataset.
-4. Confirm required future climate periods.
-5. Confirm the Global Climate Models to be used.
-6. Confirm SSP scenarios.
-7. Define the multi-model ensemble methodology.
-8. Define uncertainty metrics.
-9. Extend the climate-processing core to additional variables.
-10. Develop climate-change delta calculations.
-11. Implement crop-specific bioclimatic indicators.
-12. Define agroclimatic zoning rules.
-13. Preserve high-resolution raster outputs for the scientific atlas.
-14. Expand regional processing beyond the current Portuguese prototype.
-15. Extend the interactive pilot platform (`docs/03_pilot_interactive_platform.md`) beyond the historical `tas` baseline, once the items above are confirmed. Region selection (Douro / Beira Interior / ...) is already generalised — see `docs/04_roadmap_future_and_bioclimatic_indices.md` Phase 10.
-
----
-
-## Future scientific workflow
-
-The expected longer-term climate workflow is conceptually:
-
-```text
-Historical climate
-        +
-Future climate scenarios
-        ↓
-multiple GCMs
-        ↓
-SSP scenarios
-        ↓
-climate normal periods
-        ↓
-multi-model ensemble
-        ↓
-climate-change anomalies
-        ↓
-bioclimatic indices
-        ↓
-crop-specific thresholds
-        ↓
-agroclimatic zoning
-        ↓
-interactive AquaHub platform
-```
+1. Confirm the definitive historical and future climate datasets, GCMs and SSP scenarios with the professor (a concrete proposal already exists and is wired into the platform — see `config/climate.toml`).
+2. Receive and ingest the crop-specific bioclimatic indices the professor is calculating and delivering directly (the project's own generic GDD/Winkler Index implementation, `src/bioclimatic_indices.py`, remains available as an independent cross-check).
+3. Implement the whole-region zonal-statistics aggregation needed for real climate data in Castilla y León/Extremadura (their boundaries are already wired up — see `docs/03` Section 7).
+4. Confirm what the interactive platform's distribution chart should actually plot (currently a real but provisional placeholder — see `docs/03` Section 6).
+5. Preserve high-resolution raster outputs for the scientific atlas, once the format/deliverable for that is confirmed with the professor.
 
 ---
 
@@ -1087,40 +702,4 @@ This separation ensures:
 - easier collaboration;
 - easier future platform development.
 
----
-
-## Current prototype status
-
-The current prototype has successfully demonstrated:
-
-```text
-CHELSA monthly climate rasters
-        ↓
-CAOP administrative boundaries
-        ↓
-CRS harmonisation
-        ↓
-fractional raster–polygon intersection
-        ↓
-area-weighted zonal statistics
-        ↓
-monthly municipality climatologies
-        ↓
-calendar-weighted annual climatologies
-        ↓
-single municipality processing
-        ↓
-multi-municipality processing
-        ↓
-NUTS III regional processing
-        ↓
-Parquet persistence
-        ↓
-climate comparisons
-        ↓
-scientific figures
-        ↓
-automated tests
-```
-
-The current software baseline is therefore considered suitable for continuing the scientific development of the AquaHub climate and agroclimatic atlas after the remaining methodological decisions are confirmed with the research team.
+The current software baseline is considered suitable for continuing the scientific development of the AquaHub climate and agroclimatic atlas after the remaining methodological decisions are confirmed with the research team.

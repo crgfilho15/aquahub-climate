@@ -56,7 +56,7 @@ In priority order (blocks the most downstream work first):
 | 1 | **Daily vs. monthly future data.** Is the intended future dataset CHELSA-ISIMIP3b (daily, used by MONTEVITIS) or the CHELSA v2.1 future climatologies (monthly)? | Frost days, GDD, chilling hours and most bioclimatic indices need daily data. Building the acquisition layer against the wrong product means rebuilding it. | **Proposal drafted (Sept 2026): monthly.** Recorded in `config/climate.toml` `[future]` (`temporal_resolution = "monthly"`, `dataset = "CHELSA-climatologies-v2.1-CMIP6"`), explicitly marked as pending professor confirmation. Rationale and the frost/chilling trade-off this implies are in Section 3 below. See `docs/02` §4. |
 | 2 | **GCM set.** The 5 GCMs standardised by CHELSA v2.1, or the 9 used by MONTEVITIS (CHELSA-ISIMIP3b)? | Directly tied to decision 1 — these may be different underlying products, not just a longer list. Determines storage/compute scope (~2x). | **Proposal drafted (Sept 2026): the 5 CHELSA v2.1 GCMs** (GFDL-ESM4, IPSL-CM6A-LR, MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL), consistent with decision 1. Recorded in `config/climate.toml` `[models].gcms`, pending confirmation. See `docs/02` §7. |
 | 3 | **Confirm SSPs and periods** (SSP1-2.6/3-7.0/5-8.5; 2011–2040/2041–2070/2071–2100) | Already provisional in `climate.toml`; low risk, but should be explicitly signed off before large downloads | Unchanged from the original proposal — still pending sign-off. See `docs/02` §5–6. |
-| 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase F/G below; requires literature review + agronomist validation, not just a research team's yes/no | Not started. See `docs/02` §11–12. |
+| 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase 7/8 below; requires literature review + agronomist validation, not just a research team's yes/no | **Update (Sept 2026, professor meeting): the professor will calculate the crop-specific indices himself and deliver them to the user** — not something this codebase computes from scratch. Changes Phase 7's shape: from "implement each index's formula" to "ingest and display the professor's delivered values" (format/schema TBD once the user shares what he delivers). Phase 6's generic Tier-1 indices (GDD/Winkler Index, already built) stay useful as an independent cross-check, not a substitute. |
 | 5 | **Scope confirmation:** does the researcher's responsibility include the socioeconomic diagnosis, and which territory (Douro only vs. all four regions) for this stage | Lower engineering impact, but affects prioritisation | Partially resolved in conversation: Douro is the pilot, architecture built to extend afterwards (see Phase 10). Socioeconomic-diagnosis scope: still open. |
 
 **Recommended action:** decisions 1–3 now have a concrete drafted proposal (Section 3) ready to take to the professor as a single package — present it as a proposal, not a fait accompli. Decision 4 can start in parallel as a literature-review task (see Phase 7).
@@ -70,6 +70,29 @@ worse than building against a documented, reasoned proposal that is
 cheap to adjust if the professor pushes back (see Section 3's closing
 argument about the dataset being a config value, not something baked
 into the pipeline shape).
+
+**Update (Sept 2026, professor meeting):** the professor met with the
+user and sketched part of the platform's visual architecture (mockup
+to follow). Two things from that meeting:
+
+- **Decision 1–2 (dataset/GCMs) is still open** — the professor said he
+  is still reviewing which dataset to use. No change to the "proposal,
+  not confirmed" status above; still safe to keep building against it
+  (config value, cheap to swap), but do not treat it as settled.
+- **Decision 4 (index list/thresholds) has a new answer, not just a
+  status update: the professor will calculate the crop-specific
+  bioclimatic indices himself and hand the results to the user.**
+  This changes Phase 7's job from "implement each index's formula
+  once thresholds are confirmed" to "ingest whatever the professor
+  delivers and get it onto the platform" — closer to Phase 9
+  (platform integration) than to new scientific computation. Don't
+  build crop-specific index formulas ahead of seeing what format the
+  professor's delivery takes.
+
+The mockup, once shared, should clarify how the professor wants the
+platform laid out — treat it as the concrete spec for Phase 9's
+remaining work (variable/index selectors, layers, panel layout),
+overriding this doc's own guesses where they conflict.
 
 ---
 
@@ -510,9 +533,26 @@ only data):**
 precipitation - both work against historical data today and will work
 unchanged against real future/ensemble data once available.
 
-#### Phase 7 — Crop-specific indices
+#### Phase 7 — Crop-specific indices — 🔄 redefined (Sept 2026): ingest, not compute
 
-*Depends on Phase 6 and on Track A decision 4 (index list + thresholds).*
+*Depends on Track A decision 4, which now has an answer that changes
+this phase's shape (see the Track A table above).*
+
+**The professor will calculate the crop-specific indices himself and
+deliver the results to the user** — this codebase does not implement
+Winkler/Huglin/Cool Night/Dryness/chilling-requirement formulas for
+crop-specific thresholds. What was planned below is superseded by
+whatever format the professor's delivery takes; treat this section as
+historical context for the reasoning (crop order, index names, "never
+invent a threshold"), not as a build list to execute.
+
+Once the user shares what the professor delivers (a spreadsheet, a
+report, raw values per municipality/period?), the real Phase 7 task is
+to figure out how to ingest it into the pipeline/platform (closer to
+Phase 9 than to new scientific computation) - format TBD.
+
+<details>
+<summary>Original plan (superseded, kept for context)</summary>
 
 Recommended crop order — vinha first, because it has the most direct
 precedent (MONTEVITIS, CITAB/Hélder Fraga's own published methodology):
@@ -526,6 +566,8 @@ precedent (MONTEVITIS, CITAB/Hélder Fraga's own published methodology):
 Each index: implement, cite its literature source, and flag its threshold
 values as `pending validation` until the agronomy team confirms them —
 never invent a threshold.
+
+</details>
 
 #### Phase 8 — Agroclimatic zoning
 
