@@ -273,6 +273,21 @@ than per-municipality, as Portugal's pipeline does) is not yet
 implemented - that is part of the deferred zone-map work, not this
 boundary-loading step.
 
+**Update (Sept 2026):** ran against the real GISCO file
+(`NUTS_RG_01M_2024_4326.gpkg`) and confirmed the exact `NUTS_ID` codes:
+`ES41` (Castilla y León) and `ES43` (Extremadura). `config/climate.toml`
+now lists all 5 confirmed zones under `[[pilot_platform.regions]]` -
+Douro, Beira Interior and the previously-missing Terras de
+Trás-os-Montes use `nuts3_names` (built by
+`scripts/build_pilot_region.py` today, once CAOP/CHELSA data is
+available locally); Castilla y León and Extremadura use a new
+`gisco_nuts_ids` key instead, since they come from a different source
+and a different aggregation (whole-region, not per-municipality) -
+`scripts/build_pilot_region.py` only reads `nuts3_names`, so it skips
+these two cleanly rather than mishandling them. Building real pilot
+artefacts for the two Spanish zones still needs the zonal-stats
+aggregation step mentioned above, not yet implemented.
+
 ---
 
 ### 8. Testing
