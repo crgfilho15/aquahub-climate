@@ -37,7 +37,13 @@ header#banner {
   font-size: 1.1rem;
 }
 
-#region-select-wrapper {
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.filter-field {
   font-size: 0.8rem;
   color: var(--muted);
   display: flex;
@@ -45,8 +51,7 @@ header#banner {
   gap: 6px;
 }
 
-#region-select,
-#period-select {
+.filter-field select {
   font-size: 0.85rem;
   padding: 3px 6px;
   border-radius: 4px;
@@ -55,12 +60,9 @@ header#banner {
   color: var(--ink);
 }
 
-#period-select-wrapper {
-  font-size: 0.8rem;
+.filter-field select:disabled {
+  background: #f0f2f4;
   color: var(--muted);
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .pilot-anomaly {
@@ -113,13 +115,19 @@ main {
   color: var(--muted);
 }
 
-#panel-chart {
+#panel-distribution-chart {
   cursor: crosshair;
 }
 
-#panel-chart:focus-visible {
+#panel-distribution-chart:focus-visible {
   outline: 2px solid #2f6fb2;
   outline-offset: 2px;
+}
+
+.panel-caption {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 #panel-source {

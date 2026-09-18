@@ -1,13 +1,3 @@
-const MONTH_LABELS = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-];
-
-const MONTH_NAMES_FULL = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-
 const COLOR_STOPS = [
   { t: 0.0, color: [49, 100, 175] },
   { t: 0.5, color: [247, 234, 173] },
@@ -42,217 +32,8 @@ function temperatureToColor(value, min, max) {
   return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 }
 
-function drawMonthlyChart(svg, monthlyValues) {
-  svg.innerHTML = "";
-
-  const width = 360;
-  const height = 180;
-  const padding = { top: 12, right: 12, bottom: 24, left: 32 };
-
-  const min = Math.min(...monthlyValues);
-  const max = Math.max(...monthlyValues);
-  const span = max - min || 1;
-
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-
-  const xFor = (i) =>
-    padding.left + (i / (monthlyValues.length - 1)) * plotWidth;
-
-  const yFor = (v) =>
-    padding.top + plotHeight - ((v - min) / span) * plotHeight;
-
-  const points = monthlyValues
-    .map((v, i) => `${xFor(i)},${yFor(v)}`)
-    .join(" ");
-
-  const ns = "http://www.w3.org/2000/svg";
-
-  const axis = document.createElementNS(ns, "line");
-  axis.setAttribute("x1", padding.left);
-  axis.setAttribute("y1", height - padding.bottom);
-  axis.setAttribute("x2", width - padding.right);
-  axis.setAttribute("y2", height - padding.bottom);
-  axis.setAttribute("stroke", "#c7ccd3");
-  svg.appendChild(axis);
-
-  const polyline = document.createElementNS(ns, "polyline");
-  polyline.setAttribute("points", points);
-  polyline.setAttribute("fill", "none");
-  polyline.setAttribute("stroke", "#2f6fb2");
-  polyline.setAttribute("stroke-width", "2");
-  svg.appendChild(polyline);
-
-  monthlyValues.forEach((v, i) => {
-    const circle = document.createElementNS(ns, "circle");
-    circle.setAttribute("cx", xFor(i));
-    circle.setAttribute("cy", yFor(v));
-    circle.setAttribute("r", "2.5");
-    circle.setAttribute("fill", "#2f6fb2");
-    svg.appendChild(circle);
-
-    if (i % 2 === 0) {
-      const label = document.createElementNS(ns, "text");
-      label.setAttribute("x", xFor(i));
-      label.setAttribute("y", height - padding.bottom + 14);
-      label.setAttribute("font-size", "9");
-      label.setAttribute("fill", "#5b6675");
-      label.setAttribute("text-anchor", "middle");
-      label.textContent = MONTH_LABELS[i];
-      svg.appendChild(label);
-    }
-  });
-
-  // Crosshair + snapped point, hidden until hover/focus.
-  const crosshair = document.createElementNS(ns, "line");
-  crosshair.setAttribute("y1", padding.top);
-  crosshair.setAttribute("y2", height - padding.bottom);
-  crosshair.setAttribute("stroke", "#9aa3af");
-  crosshair.setAttribute("stroke-width", "1");
-  crosshair.setAttribute("visibility", "hidden");
-  svg.appendChild(crosshair);
-
-  const highlight = document.createElementNS(ns, "circle");
-  highlight.setAttribute("r", "4.5");
-  highlight.setAttribute("fill", "#2f6fb2");
-  highlight.setAttribute("stroke", "#ffffff");
-  highlight.setAttribute("stroke-width", "1.5");
-  highlight.setAttribute("visibility", "hidden");
-  svg.appendChild(highlight);
-
-  // Tooltip: value leads (bold, high-contrast), month label secondary.
-  const tooltipGroup = document.createElementNS(ns, "g");
-  tooltipGroup.setAttribute("visibility", "hidden");
-
-  const tooltipBg = document.createElementNS(ns, "rect");
-  tooltipBg.setAttribute("rx", "3");
-  tooltipBg.setAttribute("fill", "#1c2430");
-  tooltipGroup.appendChild(tooltipBg);
-
-  const tooltipValue = document.createElementNS(ns, "text");
-  tooltipValue.setAttribute("font-size", "11");
-  tooltipValue.setAttribute("font-weight", "700");
-  tooltipValue.setAttribute("fill", "#ffffff");
-  tooltipValue.setAttribute("text-anchor", "middle");
-  tooltipGroup.appendChild(tooltipValue);
-
-  const tooltipLabel = document.createElementNS(ns, "text");
-  tooltipLabel.setAttribute("font-size", "8.5");
-  tooltipLabel.setAttribute("fill", "#c7ccd3");
-  tooltipLabel.setAttribute("text-anchor", "middle");
-  tooltipGroup.appendChild(tooltipLabel);
-
-  svg.appendChild(tooltipGroup);
-
-  // The whole plot area is the hit target, per interaction rules: the
-  // crosshair finds the nearest month, the pointer never has to land
-  // exactly on a point.
-  const hitArea = document.createElementNS(ns, "rect");
-  hitArea.setAttribute("x", padding.left);
-  hitArea.setAttribute("y", padding.top);
-  hitArea.setAttribute("width", plotWidth);
-  hitArea.setAttribute("height", plotHeight);
-  hitArea.setAttribute("fill", "transparent");
-  svg.appendChild(hitArea);
-
-  const updateAt = (monthIndex) => {
-    const clamped = Math.max(
-      0,
-      Math.min(monthlyValues.length - 1, monthIndex)
-    );
-    const px = xFor(clamped);
-    const py = yFor(monthlyValues[clamped]);
-
-    crosshair.setAttribute("x1", px);
-    crosshair.setAttribute("x2", px);
-    crosshair.setAttribute("visibility", "visible");
-
-    highlight.setAttribute("cx", px);
-    highlight.setAttribute("cy", py);
-    highlight.setAttribute("visibility", "visible");
-
-    const valueText = `${monthlyValues[clamped].toFixed(2)} °C`;
-    const labelText = MONTH_NAMES_FULL[clamped];
-
-    tooltipValue.textContent = valueText;
-    tooltipValue.setAttribute("x", 0);
-    tooltipValue.setAttribute("y", 14);
-
-    tooltipLabel.textContent = labelText;
-    tooltipLabel.setAttribute("x", 0);
-    tooltipLabel.setAttribute("y", 25);
-
-    const boxWidth =
-      Math.max(valueText.length, labelText.length) * 6 + 12;
-    const boxHeight = 32;
-
-    tooltipBg.setAttribute("x", -boxWidth / 2);
-    tooltipBg.setAttribute("y", -2);
-    tooltipBg.setAttribute("width", boxWidth);
-    tooltipBg.setAttribute("height", boxHeight);
-
-    // Keep the tooltip inside the chart, flipping below the point
-    // when there is not enough room above it.
-    let tooltipY = py - boxHeight - 6;
-    if (tooltipY < 0) {
-      tooltipY = py + 10;
-    }
-
-    let tooltipX = px;
-    tooltipX = Math.max(boxWidth / 2, Math.min(width - boxWidth / 2, tooltipX));
-
-    tooltipGroup.setAttribute(
-      "transform",
-      `translate(${tooltipX}, ${tooltipY})`
-    );
-    tooltipGroup.setAttribute("visibility", "visible");
-  };
-
-  const hide = () => {
-    crosshair.setAttribute("visibility", "hidden");
-    highlight.setAttribute("visibility", "hidden");
-    tooltipGroup.setAttribute("visibility", "hidden");
-  };
-
-  const nearestMonthForClientX = (clientX) => {
-    const rect = svg.getBoundingClientRect();
-    const svgX = ((clientX - rect.left) / rect.width) * width;
-    const relative = (svgX - padding.left) / plotWidth;
-    return Math.round(relative * (monthlyValues.length - 1));
-  };
-
-  hitArea.addEventListener("pointermove", (event) => {
-    updateAt(nearestMonthForClientX(event.clientX));
-  });
-  hitArea.addEventListener("pointerleave", hide);
-
-  // Keyboard access: arrow keys step through months, matching the
-  // hover experience for non-pointer users.
-  svg.setAttribute("tabindex", "0");
-  svg.setAttribute("role", "img");
-  svg.setAttribute(
-    "aria-label",
-    "Climatologia mensal de temperatura, use as setas para navegar pelos meses"
-  );
-
-  let focusedMonth = 0;
-  svg.addEventListener("focus", () => updateAt(focusedMonth));
-  svg.addEventListener("blur", hide);
-  svg.addEventListener("keydown", (event) => {
-    if (event.key === "ArrowRight") {
-      focusedMonth = Math.min(monthlyValues.length - 1, focusedMonth + 1);
-      updateAt(focusedMonth);
-      event.preventDefault();
-    } else if (event.key === "ArrowLeft") {
-      focusedMonth = Math.max(0, focusedMonth - 1);
-      updateAt(focusedMonth);
-      event.preventDefault();
-    }
-  });
-}
-
 // Gaussian kernel density estimate over a small set of observed
-// values (e.g. one value per municipality/GCM within a zone) - turns
+// values (e.g. one value per municipality within a zone) - turns
 // discrete observations into the smooth distribution curve the
 // professor asked for (like a normal-distribution plot), rather than
 // a discrete-bar histogram.
@@ -287,13 +68,14 @@ function gaussianKernelDensity(values, gridSize = 120) {
 }
 
 // Draws a smooth distribution curve (Gaussian KDE) for a set of
-// observed values, with the same interaction conventions as
-// drawMonthlyChart (crosshair, value-leads tooltip, keyboard nav) and
-// a rug plot along the axis showing each real observed value under
-// the smoothed curve. What "values" contains (one per municipality
-// within a zone? one per GCM? something else?) is not yet confirmed
-// with the professor - this function only draws whatever array it is
-// given.
+// observed values, with a crosshair, value-leads tooltip, keyboard
+// nav, and a rug plot along the axis showing each real observed value
+// under the smoothed curve. Today "values" is one annual mean
+// temperature per municipality within the clicked zone (historical or
+// a future ensemble mean, depending on the Período/SSP filters) -
+// this is a provisional choice pending confirmation with the
+// professor of what the distribution axis should ultimately show
+// (see docs/03).
 function drawDistributionChart(svg, values, options = {}) {
   svg.innerHTML = "";
 
@@ -522,67 +304,26 @@ function drawDistributionChart(svg, values, options = {}) {
   });
 }
 
-function showPanel(properties) {
-  document.getElementById("panel-empty").hidden = true;
-  const content = document.getElementById("panel-content");
-  content.hidden = false;
+// The 4 crop names are confirmed (docs/04); the bioclimatic index
+// values/thresholds per crop are not - the professor is calculating
+// them and will deliver them to the project. So the crop list itself
+// is shown (real), but the select stays disabled until real index
+// data exists (see index.html's banner-warning note).
+const CULTURAS = ["Vinha", "Oliveira", "Amendoeira", "Cerejeira"];
 
-  document.getElementById("panel-name").textContent = properties.municipio;
-
-  document.getElementById("panel-annual").textContent =
-    `Temperatura média anual (${properties.period}): ` +
-    `${properties.annual_mean_celsius.toFixed(2)} °C`;
-
-  const anomalyEl = document.getElementById("panel-anomaly");
-  if (properties.scenario) {
-    const delta = properties.annual_anomaly_absolute;
-    const sign = delta >= 0 ? "+" : "";
-    anomalyEl.textContent =
-      `Cenário ${properties.scenario} · vs. histórico (1981-2010): ` +
-      `${sign}${delta.toFixed(2)} °C`;
-    anomalyEl.hidden = false;
-  } else {
-    anomalyEl.hidden = true;
-  }
-
-  document.getElementById("panel-source").textContent = properties.scenario
-    ? `Ensemble de ${properties.n_gcms || "vários"} modelos · ` +
-      `variável: ${properties.variable}`
-    : `Fonte: ${properties.source} · variável: ${properties.variable}`;
-
-  drawMonthlyChart(
-    document.getElementById("panel-chart"),
-    properties.monthly_mean_celsius
-  );
-}
-
-function buildLegend(min, max) {
-  const legend = L.control({ position: "bottomright" });
-
-  legend.onAdd = () => {
-    const div = L.DomUtil.create("div", "info-legend");
-    const steps = 5;
-
-    let html = '<div id="legend"><strong>Temp. média anual (°C)</strong><br>';
-
-    for (let i = 0; i < steps; i += 1) {
-      const value = min + ((max - min) * i) / (steps - 1);
-      const color = temperatureToColor(value, min, max);
-      html += `<span class="swatch" style="background:${color}"></span>${value.toFixed(1)}<br>`;
-    }
-
-    html += "</div>";
-    div.innerHTML = html;
-
-    return div;
-  };
-
-  return legend;
-}
+// Mirrors config/climate.toml's [future] section (periods/scenarios).
+const FUTURE_PERIODS = ["2011-2040", "2041-2070", "2071-2100"];
+const FUTURE_SCENARIOS = [
+  { value: "ssp126", label: "SSP1-2.6 (conservador)" },
+  { value: "ssp585", label: "SSP5-8.5 (crítico)" },
+];
+const PILOT_VARIABLE = "tas";
 
 let map = null;
-let currentGeoLayer = null;
+let zonesLayer = null;
 let currentLegend = null;
+let zoneFeaturesBySlug = {};
+let selectedZoneSlug = null;
 
 function initMap() {
   map = L.map("map");
@@ -593,232 +334,287 @@ function initMap() {
   }).addTo(map);
 }
 
-function resetPanel() {
-  document.getElementById("panel-content").hidden = true;
-  document.getElementById("panel-empty").hidden = false;
+function buildZonesLegend(min, max) {
+  const legend = L.control({ position: "bottomright" });
+
+  legend.onAdd = () => {
+    const div = L.DomUtil.create("div", "info-legend");
+    const steps = 5;
+
+    let html =
+      '<div id="legend"><strong>Temp. média anual (°C)</strong><br>';
+
+    for (let i = 0; i < steps; i += 1) {
+      const value = min + ((max - min) * i) / (steps - 1);
+      const color = temperatureToColor(value, min, max);
+      html += `<span class="swatch" style="background:${color}"></span>${value.toFixed(1)}<br>`;
+    }
+
+    html +=
+      '<span class="swatch" style="background:#c7ccd3"></span>' +
+      "dados pendentes</div>";
+    div.innerHTML = html;
+
+    return div;
+  };
+
+  return legend;
 }
 
-function renderFeatureCollection(featureCollection) {
-  if (currentGeoLayer) {
-    map.removeLayer(currentGeoLayer);
+function zoneStyle(feature, min, max) {
+  if (!feature.properties.built) {
+    return {
+      fillColor: "#c7ccd3",
+      fillOpacity: 0.4,
+      weight: 1.5,
+      color: "#9aa3af",
+      dashArray: "4 3",
+    };
+  }
+
+  return {
+    fillColor: temperatureToColor(
+      feature.properties.annual_mean_celsius,
+      min,
+      max
+    ),
+    fillOpacity: 0.75,
+    weight: 1.5,
+    color: "#3a4250",
+  };
+}
+
+async function loadZones() {
+  const subtitle = document.getElementById("banner-subtitle");
+
+  let featureCollection;
+  try {
+    const response = await fetch("/api/pilot/zones");
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    featureCollection = await response.json();
+  } catch (err) {
+    subtitle.innerHTML =
+      "Nenhuma zona construída ainda. Rode " +
+      "<code>python -m scripts.build_zone_overview</code> localmente " +
+      "e reinicie a API.";
+    return;
+  }
+
+  if (!featureCollection.features || featureCollection.features.length === 0) {
+    subtitle.innerHTML =
+      "Nenhuma zona construída ainda. Rode " +
+      "<code>python -m scripts.build_zone_overview</code> localmente " +
+      "e reinicie a API.";
+    return;
+  }
+
+  zoneFeaturesBySlug = {};
+  featureCollection.features.forEach((feature) => {
+    zoneFeaturesBySlug[feature.properties.slug] = feature;
+  });
+
+  const builtValues = featureCollection.features
+    .filter((feature) => feature.properties.built)
+    .map((feature) => feature.properties.annual_mean_celsius);
+
+  const min = builtValues.length ? Math.min(...builtValues) : 0;
+  const max = builtValues.length ? Math.max(...builtValues) : 1;
+
+  if (zonesLayer) {
+    map.removeLayer(zonesLayer);
   }
   if (currentLegend) {
     map.removeControl(currentLegend);
   }
 
-  const values = featureCollection.features.map(
-    (f) => f.properties.annual_mean_celsius
-  );
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-
-  currentGeoLayer = L.geoJSON(featureCollection, {
-    style: (feature) => ({
-      fillColor: temperatureToColor(
-        feature.properties.annual_mean_celsius,
-        min,
-        max
-      ),
-      fillOpacity: 0.75,
-      weight: 1,
-      color: "#3a4250",
-    }),
+  zonesLayer = L.geoJSON(featureCollection, {
+    style: (feature) => zoneStyle(feature, min, max),
     onEachFeature: (feature, layer) => {
-      layer.bindTooltip(
-        `${feature.properties.municipio}: ` +
-        `${feature.properties.annual_mean_celsius.toFixed(2)} °C`
-      );
-      layer.on("click", () => showPanel(feature.properties));
+      const label = feature.properties.built
+        ? `${feature.properties.label}: ` +
+          `${feature.properties.annual_mean_celsius.toFixed(2)} °C`
+        : `${feature.properties.label} (dados pendentes)`;
+      layer.bindTooltip(label);
+      layer.on("click", () => selectZone(feature.properties.slug));
     },
   }).addTo(map);
 
-  map.fitBounds(currentGeoLayer.getBounds(), { padding: [16, 16] });
+  map.fitBounds(zonesLayer.getBounds(), { padding: [16, 16] });
 
-  currentLegend = buildLegend(min, max);
-  currentLegend.addTo(map);
-}
-
-// Future GeoJSON properties are named differently
-// (annual_ensemble_mean/monthly_ensemble_mean) from the historical
-// ones (annual_mean_celsius/monthly_mean_celsius) that
-// renderFeatureCollection/showPanel already know how to draw. Rather
-// than teaching every render function two naming schemes, normalize
-// once here so the rest of the rendering path stays unchanged.
-function normalizeFutureFeatureCollection(featureCollection) {
-  return {
-    type: "FeatureCollection",
-    features: featureCollection.features.map((feature) => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        annual_mean_celsius: feature.properties.annual_ensemble_mean,
-        monthly_mean_celsius: feature.properties.monthly_ensemble_mean,
-      },
-    })),
-  };
-}
-
-async function loadFuturePeriodOptions(slug) {
-  const periodSelect = document.getElementById("period-select");
-  periodSelect.innerHTML =
-    '<option value="historical">Histórico (1981-2010)</option>';
-
-  let slices = [];
-  try {
-    const response = await fetch(`/api/pilot/${slug}/future`);
-    slices = await response.json();
-  } catch (err) {
-    slices = [];
+  if (builtValues.length) {
+    currentLegend = buildZonesLegend(min, max);
+    currentLegend.addTo(map);
   }
 
-  for (const slice of slices) {
-    const option = document.createElement("option");
-    option.value = `${slice.variable}|${slice.scenario}|${slice.period}`;
-    const scenarioLabel = slice.scenario.toUpperCase();
-    option.textContent =
-      `Futuro · ${scenarioLabel} · ${slice.period} (${slice.variable})`;
-    periodSelect.appendChild(option);
-  }
-
-  periodSelect.disabled = false;
-  periodSelect.value = "historical";
+  subtitle.textContent =
+    "Clique numa zona no mapa para ver a sua distribuição de valores.";
 }
 
-async function loadPeriodData(slug, selection) {
-  const subtitle = document.getElementById("banner-subtitle");
-  resetPanel();
+function showDistribution(values, unit, caption) {
+  document.getElementById("panel-distribution-caption").textContent =
+    caption;
+  document.getElementById("panel-distribution-wrapper").hidden = false;
+  drawDistributionChart(
+    document.getElementById("panel-distribution-chart"),
+    values,
+    { unit: ` ${unit}` }
+  );
+}
 
-  if (selection === "historical") {
-    await loadHistoricalRegion(slug);
+async function selectZone(slug) {
+  selectedZoneSlug = slug;
+  const feature = zoneFeaturesBySlug[slug];
+  if (!feature) {
     return;
   }
 
-  const [variable, scenario, period] = selection.split("|");
+  document.getElementById("panel-empty").hidden = true;
+  document.getElementById("panel-content").hidden = false;
+  document.getElementById("panel-name").textContent =
+    feature.properties.label;
 
-  let meta;
-  try {
-    const metaResponse = await fetch(
-      `/api/pilot/${slug}/future/${variable}/${scenario}/${period}/meta`
+  const annualEl = document.getElementById("panel-annual");
+  const pendingEl = document.getElementById("panel-pending");
+  const distWrapper = document.getElementById("panel-distribution-wrapper");
+
+  if (!feature.properties.built) {
+    annualEl.textContent = "";
+    pendingEl.hidden = false;
+    distWrapper.hidden = true;
+    return;
+  }
+
+  pendingEl.hidden = true;
+
+  const period = document.getElementById("period-select").value;
+
+  if (period === "historical") {
+    annualEl.textContent =
+      "Temperatura média anual (histórico 1981-2010): " +
+      `${feature.properties.annual_mean_celsius.toFixed(2)} °C`;
+
+    const values = feature.properties.municipality_values.map(
+      (m) => m.annual_mean_celsius
     );
-    if (!metaResponse.ok) {
-      throw new Error(await metaResponse.text());
-    }
-    meta = await metaResponse.json();
-  } catch (err) {
-    subtitle.innerHTML =
-      "Dados futuros não encontrados. Rode " +
-      "<code>python -m scripts.build_future_pilot_data " +
-      "&lt;ensemble.csv&gt;</code> localmente e reinicie a API.";
+    showDistribution(
+      values,
+      "°C",
+      "Distribuição da temperatura média anual por município na " +
+      "zona (provisório — pendente confirmação com o professor)"
+    );
     return;
   }
 
-  subtitle.innerHTML =
-    `${meta.region_name} · ${meta.dataset} · ` +
-    `variável <strong>${meta.variable}</strong> · ` +
-    `cenário <strong>${meta.scenario}</strong> · ` +
-    `período <strong>${meta.period}</strong> · ` +
-    `ensemble de <strong>${meta.gcms.length} GCMs</strong> · ` +
-    `metodologia: <strong>${meta.methodology_status}</strong>`;
+  const scenario = document.getElementById("ssp-select").value;
 
-  const geoResponse = await fetch(
-    `/api/pilot/${slug}/future/${variable}/${scenario}/${period}`
-  );
-  const featureCollection = await geoResponse.json();
+  if (!scenario) {
+    annualEl.textContent = "Selecione um cenário SSP.";
+    distWrapper.hidden = true;
+    return;
+  }
 
-  renderFeatureCollection(
-    normalizeFutureFeatureCollection(featureCollection)
-  );
-}
+  annualEl.textContent = "a carregar dados futuros...";
+  distWrapper.hidden = true;
 
-async function loadHistoricalRegion(slug) {
-  const subtitle = document.getElementById("banner-subtitle");
-  const warning = document.getElementById("banner-warning");
-  warning.hidden = true;
-
-  let meta;
   try {
-    const metaResponse = await fetch(`/api/pilot/${slug}/meta`);
-    if (!metaResponse.ok) {
-      throw new Error(await metaResponse.text());
+    const response = await fetch(
+      `/api/pilot/${slug}/future/${PILOT_VARIABLE}/${scenario}/${period}`
+    );
+    if (!response.ok) {
+      throw new Error(await response.text());
     }
-    meta = await metaResponse.json();
+    const futureFeatureCollection = await response.json();
+    const values = futureFeatureCollection.features.map(
+      (f) => f.properties.annual_ensemble_mean
+    );
+
+    if (values.length === 0) {
+      throw new Error("empty future feature collection");
+    }
+
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+
+    annualEl.textContent =
+      `Temperatura média anual (${scenario.toUpperCase()} · ${period}): ` +
+      `${mean.toFixed(2)} °C`;
+
+    showDistribution(
+      values,
+      "°C",
+      "Distribuição da temperatura média anual (ensemble) por " +
+      "município na zona (provisório — pendente confirmação com o " +
+      "professor)"
+    );
   } catch (err) {
-    subtitle.innerHTML =
-      "Dados do piloto não encontrados. Rode " +
-      `<code>python -m scripts.build_pilot_region --region ${slug}</code> ` +
-      "localmente e reinicie a API.";
-    return;
+    annualEl.textContent =
+      "Dados futuros não encontrados para esta zona. Rode " +
+      "python -m scripts.build_future_pilot_data localmente e " +
+      "reinicie a API.";
+    distWrapper.hidden = true;
   }
-
-  subtitle.innerHTML =
-    `${meta.region_name} · ${meta.dataset} · ` +
-    `variável <strong>${meta.variable}</strong> · ` +
-    `período <strong>${meta.period}</strong> · ` +
-    `metodologia: <strong>${meta.methodology_status}</strong>`;
-
-  if (!meta.future_scenarios_included) {
-    warning.textContent =
-      "Cenários futuros (SSP/GCM) ainda não incluídos — " +
-      "aguardando validação metodológica com o professor.";
-    warning.hidden = false;
-  }
-
-  const geoResponse = await fetch(`/api/pilot/${slug}`);
-  const featureCollection = await geoResponse.json();
-
-  renderFeatureCollection(featureCollection);
 }
 
-async function loadRegion(slug) {
-  resetPanel();
+function setupFilters() {
+  const culturaSelect = document.getElementById("cultura-select");
+  CULTURAS.forEach((cultura) => {
+    const option = document.createElement("option");
+    option.value = cultura.toLowerCase();
+    option.textContent = cultura;
+    culturaSelect.appendChild(option);
+  });
 
   const periodSelect = document.getElementById("period-select");
-  periodSelect.value = "historical";
+  FUTURE_PERIODS.forEach((period) => {
+    const option = document.createElement("option");
+    option.value = period;
+    option.textContent = `Futuro · ${period}`;
+    periodSelect.appendChild(option);
+  });
 
-  await loadHistoricalRegion(slug);
-  await loadFuturePeriodOptions(slug);
+  const sspSelect = document.getElementById("ssp-select");
+
+  const populateSsp = () => {
+    sspSelect.innerHTML = "";
+
+    if (periodSelect.value === "historical") {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "n/a (histórico)";
+      sspSelect.appendChild(option);
+      sspSelect.disabled = true;
+      return;
+    }
+
+    FUTURE_SCENARIOS.forEach((scenario) => {
+      const option = document.createElement("option");
+      option.value = scenario.value;
+      option.textContent = scenario.label;
+      sspSelect.appendChild(option);
+    });
+    sspSelect.disabled = false;
+  };
+
+  populateSsp();
+
+  const refreshSelectedZone = () => {
+    if (selectedZoneSlug) {
+      selectZone(selectedZoneSlug);
+    }
+  };
+
+  periodSelect.addEventListener("change", () => {
+    populateSsp();
+    refreshSelectedZone();
+  });
+  sspSelect.addEventListener("change", refreshSelectedZone);
 }
 
 async function init() {
   initMap();
-
-  const select = document.getElementById("region-select");
-  const subtitle = document.getElementById("banner-subtitle");
-
-  let regions = [];
-  try {
-    const response = await fetch("/api/pilot");
-    regions = await response.json();
-  } catch (err) {
-    regions = [];
-  }
-
-  if (regions.length === 0) {
-    subtitle.innerHTML =
-      "Nenhum piloto construído ainda. Rode " +
-      "<code>python -m scripts.build_pilot_region</code> localmente " +
-      "e reinicie a API.";
-    select.innerHTML = '<option value="">nenhuma região disponível</option>';
-    return;
-  }
-
-  select.innerHTML = "";
-  for (const region of regions) {
-    const option = document.createElement("option");
-    option.value = region.slug;
-    option.textContent = region.label;
-    select.appendChild(option);
-  }
-  select.disabled = false;
-
-  select.addEventListener("change", () => loadRegion(select.value));
-
-  const periodSelect = document.getElementById("period-select");
-  periodSelect.addEventListener("change", () => {
-    loadPeriodData(select.value, periodSelect.value);
-  });
-
-  await loadRegion(regions[0].slug);
+  setupFilters();
+  await loadZones();
 }
 
 init();

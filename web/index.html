@@ -11,21 +11,41 @@
   <header id="banner">
     <div id="banner-heading">
       <h1>AquaHub Climate — Piloto</h1>
-      <label id="region-select-wrapper">
-        Região:
-        <select id="region-select" disabled>
-          <option value="">a carregar...</option>
-        </select>
-      </label>
-      <label id="period-select-wrapper">
-        Período:
-        <select id="period-select" disabled>
-          <option value="historical">Histórico (1981-2010)</option>
-        </select>
-      </label>
+      <div id="filters">
+        <label class="filter-field">
+          Cultura:
+          <select id="cultura-select" disabled>
+            <option value="">a aguardar dados do professor</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          Índice:
+          <select id="indice-select" disabled>
+            <option value="">selecione a cultura</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          Período:
+          <select id="period-select">
+            <option value="historical">Histórico (1981-2010)</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          SSP:
+          <select id="ssp-select" disabled>
+            <option value="">n/a (histórico)</option>
+          </select>
+        </label>
+      </div>
     </div>
-    <p id="banner-subtitle">a carregar metadados...</p>
-    <p id="banner-warning" class="pilot-warning" hidden></p>
+    <p id="banner-subtitle">
+      Clique numa zona no mapa para ver a sua distribuição de valores.
+    </p>
+    <p id="banner-warning" class="pilot-warning">
+      Cultura e Índice ainda não estão disponíveis — o professor está a
+      calcular os índices bioclimáticos por cultura e vai entregá-los
+      ao projeto. Período e SSP já usam dados reais de temperatura.
+    </p>
   </header>
 
   <main>
@@ -33,14 +53,23 @@
 
     <aside id="panel">
       <div id="panel-empty">
-        <p>Clique num município no mapa para ver a sua climatologia.</p>
+        <p>Clique numa zona no mapa para ver a sua climatologia.</p>
       </div>
       <div id="panel-content" hidden>
         <h2 id="panel-name"></h2>
         <p id="panel-annual"></p>
-        <p id="panel-anomaly" class="pilot-anomaly" hidden></p>
-        <svg id="panel-chart" viewBox="0 0 360 180" width="100%" height="180"></svg>
-        <p id="panel-source"></p>
+        <p id="panel-pending" class="pilot-warning" hidden>
+          Ainda não há dados climáticos processados para esta zona.
+        </p>
+        <div id="panel-distribution-wrapper" hidden>
+          <p id="panel-distribution-caption" class="panel-caption"></p>
+          <svg
+            id="panel-distribution-chart"
+            viewBox="0 0 300 160"
+            width="100%"
+            height="160"
+          ></svg>
+        </div>
       </div>
     </aside>
   </main>
