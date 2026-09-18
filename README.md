@@ -23,9 +23,9 @@ The definitive climate datasets and modelling methodology are still under discus
 
 ---
 
-## Interactive pilot platform (v1)
+## Interactive pilot platform (v2)
 
-A first interactive map platform is available, built on the validated baseline climatology pipeline below, with a region selector (Douro is fully validated with real data; more regions can be added via `config/climate.toml`). It intentionally shows only the historical baseline (`tas`, 1981–2010) — future SSP/GCM scenarios are not yet included, pending methodological confirmation (a concrete proposal exists — see `docs/04_roadmap_future_and_bioclimatic_indices.md`).
+An interactive map platform is available, built on the validated baseline climatology pipeline below. Per the professor's confirmed design (Sept 2026), it shows all 5 intervention zones on a single map at once (Douro, Terras de Trás-os-Montes and Beira Interior in Portugal; Castilla y León and Extremadura in Spain), clickable to open a distribution chart, with Cultura/Índice/Período/SSP filters above the map — Cultura/Índice are shown (the 4 confirmed crops) but disabled until the professor delivers real bioclimatic index data. Douro and Terras de Trás-os-Montes are fully validated with real data; Beira Interior needs a CHELSA/CAOP run; the 2 Spanish zones have confirmed boundaries but no climate-data pipeline yet — see `config/climate.toml`.
 
 Full details, architecture rationale and known limitations: `docs/03_pilot_interactive_platform.md`.
 
@@ -33,6 +33,7 @@ Quick start, once `data/raw/` is populated as described below:
 
 ```powershell
 python -m scripts.build_pilot_region
+python -m scripts.build_zone_overview
 uvicorn api.main:app --reload
 # open http://127.0.0.1:8000
 ```

@@ -141,6 +141,80 @@ def test_list_available_pilot_regions_includes_built_region_only(
     assert response.json() == [{"slug": "douro", "label": "Douro"}]
 
 
+def write_zones_overview_fixture(tmp_path):
+    feature_collection = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "slug": "douro",
+                    "label": "Douro",
+                    "built": True,
+                    "annual_mean_celsius": 13.0,
+                    "municipality_values": [
+                        {"municipio": "Vila Real", "annual_mean_celsius": 12.0},
+                        {"municipio": "Sabrosa", "annual_mean_celsius": 14.0},
+                    ],
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [[-7.9, 41.2], [-7.6, 41.2], [-7.6, 41.4], [-7.9, 41.4], [-7.9, 41.2]]
+                    ],
+                },
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "slug": "castilla-y-leon",
+                    "label": "Castilla y León",
+                    "built": False,
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [[-6.5, 40.0], [-4.0, 40.0], [-4.0, 42.5], [-6.5, 42.5], [-6.5, 40.0]]
+                    ],
+                },
+            },
+        ],
+    }
+
+    (tmp_path / "zones_overview.geojson").write_text(
+        json.dumps(feature_collection), encoding="utf-8"
+    )
+
+
+def test_get_zone_overview_returns_data(tmp_path, monkeypatch):
+    write_zones_overview_fixture(tmp_path)
+    monkeypatch.setenv("AQUAHUB_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get("/api/pilot/zones")
+
+    assert response.status_code == 200
+    body = response.json()
+    slugs = {f["properties"]["slug"] for f in body["features"]}
+    assert slugs == {"douro", "castilla-y-leon"}
+
+    built_by_slug = {
+        f["properties"]["slug"]: f["properties"]["built"]
+        for f in body["features"]
+    }
+    assert built_by_slug == {"douro": True, "castilla-y-leon": False}
+
+
+def test_get_zone_overview_missing_returns_404_with_hint(tmp_path, monkeypatch):
+    monkeypatch.setenv("AQUAHUB_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get("/api/pilot/zones")
+
+    assert response.status_code == 404
+    assert "build_zone_overview" in response.json()["detail"]
+
+
 def write_future_fixture(
     tmp_path,
     slug="douro",
