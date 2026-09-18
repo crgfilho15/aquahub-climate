@@ -537,10 +537,10 @@ never invent a threshold.
 - Produce current-suitability zoning first (baseline only), then
   future-suitability and suitability-change once Phases 2–5 are in place.
 
-#### Phase 9 — Platform integration
+#### Phase 9 — Platform integration — 🟡 first slice done (Sept 2026): scenario/period selector, ensemble + anomaly view
 
-*Depends on whichever of Phases 3–8 is ready; can be done incrementally,
-one layer at a time, rather than as one big-bang release.*
+*Depends on whichever of Phases 3–8 is ready; done incrementally, one
+layer at a time, rather than as one big-bang release.*
 
 - Extend `pilot_export.py`/`api/main.py`/`web/` to add: SSP + period +
   variable selectors, ensemble mean + uncertainty band display, anomaly
@@ -550,8 +550,81 @@ one layer at a time, rather than as one big-bang release.*
 - The **region** axis of this is already done (Phase 10, below) — the
   platform now has a working selector pattern (`GET /api/pilot` listing
   built regions, a dropdown that reloads the map/panel/legend on
-  change). The same pattern is the template for the variable/period/SSP
-  selectors this phase still needs to add.
+  change). The same pattern is now also the template used below for the
+  period/scenario selector.
+
+**Done (first slice — scenario/period, ensemble mean, anomaly view):**
+
+- `src/future_pilot_export.py` (new): `build_future_pilot_feature_collection`
+  converts one variable/scenario/period slice of Phase 5's anomaly
+  output (which already carries Phase 4's ensemble values) into a
+  GeoJSON `FeatureCollection`, mirroring `pilot_export.py`'s shape for
+  the historical baseline — same static-file architecture, no live
+  computation in the API. Reuses `calculate_annual_climatology_for_regions`
+  (the historical pipeline's own days-weighted annual aggregation) so
+  the annual figure is computed the same way for both.
+- `scripts/build_future_pilot_data.py` (new): takes a Phase 4 ensemble
+  CSV, recomputes the historical baseline the same way
+  `scripts/build_anomaly_climatology.py` does, and writes one GeoJSON/
+  metadata pair per scenario/period found in the CSV to
+  `data/processed/pilot/future/`.
+- `api/main.py`: `GET /api/pilot/{region}/future` (lists built
+  variable/scenario/period combinations), `GET
+  /api/pilot/{region}/future/{variable}/{scenario}/{period}` and
+  `.../meta`. Variable/scenario/period are validated against
+  `config/climate.toml` before ever being used to build a file path —
+  the same allow-list principle already applied to the region slug.
+- `web/`: a period selector next to the region selector
+  (`index.html`/`app.js`), defaulting to "Histórico (1981-2010)" with
+  one option per available future scenario/period, fetched from the
+  new `/future` listing endpoint. Selecting a future option re-renders
+  the same map/legend/panel components used for historical data — the
+  future GeoJSON's `annual_ensemble_mean`/`monthly_ensemble_mean`
+  properties are normalised client-side to the historical property
+  names (`annual_mean_celsius`/`monthly_mean_celsius`) so the existing,
+  already-tested rendering code (colour scale, legend, chart with
+  hover/keyboard interaction) needed no changes. The panel additionally
+  shows the anomaly vs. the historical baseline (e.g. "Cenário ssp585 ·
+  vs. histórico (1981-2010): +3.50 °C") when viewing future data.
+- Verified end-to-end with a headless browser (Chromium via Playwright)
+  against synthetic historical + future fixture data for two
+  municipalities: default historical view loads correctly, the future
+  option appears in the selector, switching to it updates the banner
+  (scenario, period, GCM count), re-colours the map, and the panel
+  shows the correct annual value and anomaly line; switching back
+  behaves correctly. Screenshot confirms the map, legend, panel and
+  chart all render as expected. The only console noise was the
+  sandbox's network policy blocking OpenStreetMap base-map tiles (not
+  a code issue — tiles will load normally outside this sandbox) and a
+  pre-existing, unrelated `/favicon.ico` 404.
+- `tests/test_future_pilot_export.py` (7 tests) and additions to
+  `tests/test_pilot_api.py` (7 tests) - all synthetic fixtures, no
+  network or real CHELSA/CAOP data needed.
+- **Found and fixed a real, currently-active bug while starting this
+  phase:** `pilot_export.py`'s `build_pilot_feature_collection` still
+  expected a `mean_celsius` column, but Phase 1's generalisation
+  changed what `scripts/build_pilot_region.py` actually calls to
+  return `mean_value` instead. A real run of `build_pilot_region.py`
+  today would have raised `KeyError: 'mean_celsius'` — masked because
+  `tests/test_pilot_export.py`'s fixtures built `mean_celsius`
+  DataFrames directly rather than going through the real pipeline.
+  Fixed and the test fixtures corrected to match reality (see that
+  PR for the full explanation).
+
+**Explicitly NOT done yet:**
+
+- Uncertainty band display (min/max from Phase 4's ensemble output are
+  in the GeoJSON's source anomaly data but not yet surfaced in the UI).
+- Index layers (Phase 6's GDD/Winkler Index) and the zoning layer
+  (Phase 8) — natural next additions to this same pattern.
+- A real run of `scripts/build_future_pilot_data.py` against real data
+  — the verification above used synthetic fixtures written directly to
+  the expected file locations, not a real CSV → GeoJSON build. Next
+  step once the user's full download + ensemble/anomaly CSVs are ready.
+
+**Deliverable:** 🟡 done for the scenario/period selector + ensemble +
+anomaly view (verified end-to-end with synthetic data); pending one
+real run against the user's actual future data.
 
 #### Phase 10 — Scale beyond Douro — 🟡 infrastructure done (Sept 2026), Beira Interior data pending
 

@@ -139,3 +139,164 @@ def test_list_available_pilot_regions_includes_built_region_only(
 
     assert response.status_code == 200
     assert response.json() == [{"slug": "douro", "label": "Douro"}]
+
+
+def write_future_fixture(
+    tmp_path,
+    slug="douro",
+    variable="tas",
+    scenario="ssp585",
+    period="2041-2070",
+):
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "municipio": "Vila Real",
+                    "variable": variable,
+                    "scenario": scenario,
+                    "period": period,
+                    "annual_ensemble_mean": 13.5,
+                    "annual_anomaly_absolute": 2.1,
+                    "monthly_ensemble_mean": [10.0] * 12,
+                    "monthly_anomaly_absolute": [2.0] * 12,
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [[-7.9, 41.2], [-7.6, 41.2], [-7.6, 41.4], [-7.9, 41.4], [-7.9, 41.2]]
+                    ],
+                },
+            }
+        ],
+    }
+
+    metadata = {
+        "slug": slug,
+        "region_name": "Douro",
+        "variable": variable,
+        "scenario": scenario,
+        "period": period,
+        "dataset": "CHELSA-climatologies-v2.1-CMIP6",
+        "gcms": ["GFDL-ESM4"],
+        "ensemble_method": "equal_weight_mean",
+        "methodology_status": "provisional",
+        "generated_at": "2026-09-18T00:00:00+00:00",
+    }
+
+    stem = f"{slug}_{variable}_{scenario}_{period}_future"
+
+    (tmp_path / f"{stem}.geojson").write_text(
+        json.dumps(geojson), encoding="utf-8"
+    )
+    (tmp_path / f"{stem}_meta.json").write_text(
+        json.dumps(metadata), encoding="utf-8"
+    )
+
+
+def test_get_future_pilot_geojson_returns_data(tmp_path, monkeypatch):
+    write_future_fixture(tmp_path)
+    monkeypatch.setenv("AQUAHUB_FUTURE_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/pilot/douro/future/tas/ssp585/2041-2070"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["features"][0]["properties"]["municipio"] == "Vila Real"
+
+
+def test_get_future_pilot_metadata_returns_data(tmp_path, monkeypatch):
+    write_future_fixture(tmp_path)
+    monkeypatch.setenv("AQUAHUB_FUTURE_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/pilot/douro/future/tas/ssp585/2041-2070/meta"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["gcms"] == ["GFDL-ESM4"]
+
+
+def test_get_future_pilot_missing_slice_returns_404_with_hint(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("AQUAHUB_FUTURE_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/pilot/douro/future/tas/ssp585/2041-2070"
+    )
+
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert "build_future_pilot_data" in detail
+    assert "ssp585" in detail
+    assert "2041-2070" in detail
+
+
+def test_get_future_pilot_unconfigured_scenario_returns_404_without_filesystem(
+    tmp_path, monkeypatch
+):
+    """A scenario not in config/climate.toml's [future].scenarios must
+    be rejected by the allow-list before any file path is built - same
+    principle as the region slug allow-list."""
+
+    write_future_fixture(tmp_path)
+    monkeypatch.setenv("AQUAHUB_FUTURE_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/pilot/douro/future/tas/ssp370/2041-2070"
+    )
+
+    assert response.status_code == 404
+    assert "Unknown scenario" in response.json()["detail"]
+
+
+def test_get_future_pilot_unconfigured_region_returns_404(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("AQUAHUB_FUTURE_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/pilot/not-a-real-region/future/tas/ssp585/2041-2070"
+    )
+
+    assert response.status_code == 404
+    assert "Unknown pilot region" in response.json()["detail"]
+
+
+def test_list_available_future_slices_empty_when_nothing_built(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("AQUAHUB_FUTURE_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get("/api/pilot/douro/future")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_available_future_slices_includes_built_slice_only(
+    tmp_path, monkeypatch
+):
+    write_future_fixture(
+        tmp_path, variable="tas", scenario="ssp585", period="2041-2070"
+    )
+    monkeypatch.setenv("AQUAHUB_FUTURE_PILOT_DATA_DIR", str(tmp_path))
+
+    client = TestClient(app)
+    response = client.get("/api/pilot/douro/future")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"variable": "tas", "scenario": "ssp585", "period": "2041-2070"}
+    ]

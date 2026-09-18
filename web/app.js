@@ -262,8 +262,22 @@ function showPanel(properties) {
     `Temperatura média anual (${properties.period}): ` +
     `${properties.annual_mean_celsius.toFixed(2)} °C`;
 
-  document.getElementById("panel-source").textContent =
-    `Fonte: ${properties.source} · variável: ${properties.variable}`;
+  const anomalyEl = document.getElementById("panel-anomaly");
+  if (properties.scenario) {
+    const delta = properties.annual_anomaly_absolute;
+    const sign = delta >= 0 ? "+" : "";
+    anomalyEl.textContent =
+      `Cenário ${properties.scenario} · vs. histórico (1981-2010): ` +
+      `${sign}${delta.toFixed(2)} °C`;
+    anomalyEl.hidden = false;
+  } else {
+    anomalyEl.hidden = true;
+  }
+
+  document.getElementById("panel-source").textContent = properties.scenario
+    ? `Ensemble de ${properties.n_gcms || "vários"} modelos · ` +
+      `variável: ${properties.variable}`
+    : `Fonte: ${properties.source} · variável: ${properties.variable}`;
 
   drawMonthlyChart(
     document.getElementById("panel-chart"),
@@ -313,43 +327,7 @@ function resetPanel() {
   document.getElementById("panel-empty").hidden = false;
 }
 
-async function loadRegion(slug) {
-  const subtitle = document.getElementById("banner-subtitle");
-  const warning = document.getElementById("banner-warning");
-  warning.hidden = true;
-  resetPanel();
-
-  let meta;
-  try {
-    const metaResponse = await fetch(`/api/pilot/${slug}/meta`);
-    if (!metaResponse.ok) {
-      throw new Error(await metaResponse.text());
-    }
-    meta = await metaResponse.json();
-  } catch (err) {
-    subtitle.innerHTML =
-      "Dados do piloto não encontrados. Rode " +
-      `<code>python -m scripts.build_pilot_region --region ${slug}</code> ` +
-      "localmente e reinicie a API.";
-    return;
-  }
-
-  subtitle.innerHTML =
-    `${meta.region_name} · ${meta.dataset} · ` +
-    `variável <strong>${meta.variable}</strong> · ` +
-    `período <strong>${meta.period}</strong> · ` +
-    `metodologia: <strong>${meta.methodology_status}</strong>`;
-
-  if (!meta.future_scenarios_included) {
-    warning.textContent =
-      "Cenários futuros (SSP/GCM) ainda não incluídos — " +
-      "aguardando validação metodológica com o professor.";
-    warning.hidden = false;
-  }
-
-  const geoResponse = await fetch(`/api/pilot/${slug}`);
-  const featureCollection = await geoResponse.json();
-
+function renderFeatureCollection(featureCollection) {
   if (currentGeoLayer) {
     map.removeLayer(currentGeoLayer);
   }
@@ -389,6 +367,147 @@ async function loadRegion(slug) {
   currentLegend.addTo(map);
 }
 
+// Future GeoJSON properties are named differently
+// (annual_ensemble_mean/monthly_ensemble_mean) from the historical
+// ones (annual_mean_celsius/monthly_mean_celsius) that
+// renderFeatureCollection/showPanel already know how to draw. Rather
+// than teaching every render function two naming schemes, normalize
+// once here so the rest of the rendering path stays unchanged.
+function normalizeFutureFeatureCollection(featureCollection) {
+  return {
+    type: "FeatureCollection",
+    features: featureCollection.features.map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        annual_mean_celsius: feature.properties.annual_ensemble_mean,
+        monthly_mean_celsius: feature.properties.monthly_ensemble_mean,
+      },
+    })),
+  };
+}
+
+async function loadFuturePeriodOptions(slug) {
+  const periodSelect = document.getElementById("period-select");
+  periodSelect.innerHTML =
+    '<option value="historical">Histórico (1981-2010)</option>';
+
+  let slices = [];
+  try {
+    const response = await fetch(`/api/pilot/${slug}/future`);
+    slices = await response.json();
+  } catch (err) {
+    slices = [];
+  }
+
+  for (const slice of slices) {
+    const option = document.createElement("option");
+    option.value = `${slice.variable}|${slice.scenario}|${slice.period}`;
+    const scenarioLabel = slice.scenario.toUpperCase();
+    option.textContent =
+      `Futuro · ${scenarioLabel} · ${slice.period} (${slice.variable})`;
+    periodSelect.appendChild(option);
+  }
+
+  periodSelect.disabled = false;
+  periodSelect.value = "historical";
+}
+
+async function loadPeriodData(slug, selection) {
+  const subtitle = document.getElementById("banner-subtitle");
+  resetPanel();
+
+  if (selection === "historical") {
+    await loadHistoricalRegion(slug);
+    return;
+  }
+
+  const [variable, scenario, period] = selection.split("|");
+
+  let meta;
+  try {
+    const metaResponse = await fetch(
+      `/api/pilot/${slug}/future/${variable}/${scenario}/${period}/meta`
+    );
+    if (!metaResponse.ok) {
+      throw new Error(await metaResponse.text());
+    }
+    meta = await metaResponse.json();
+  } catch (err) {
+    subtitle.innerHTML =
+      "Dados futuros não encontrados. Rode " +
+      "<code>python -m scripts.build_future_pilot_data " +
+      "&lt;ensemble.csv&gt;</code> localmente e reinicie a API.";
+    return;
+  }
+
+  subtitle.innerHTML =
+    `${meta.region_name} · ${meta.dataset} · ` +
+    `variável <strong>${meta.variable}</strong> · ` +
+    `cenário <strong>${meta.scenario}</strong> · ` +
+    `período <strong>${meta.period}</strong> · ` +
+    `ensemble de <strong>${meta.gcms.length} GCMs</strong> · ` +
+    `metodologia: <strong>${meta.methodology_status}</strong>`;
+
+  const geoResponse = await fetch(
+    `/api/pilot/${slug}/future/${variable}/${scenario}/${period}`
+  );
+  const featureCollection = await geoResponse.json();
+
+  renderFeatureCollection(
+    normalizeFutureFeatureCollection(featureCollection)
+  );
+}
+
+async function loadHistoricalRegion(slug) {
+  const subtitle = document.getElementById("banner-subtitle");
+  const warning = document.getElementById("banner-warning");
+  warning.hidden = true;
+
+  let meta;
+  try {
+    const metaResponse = await fetch(`/api/pilot/${slug}/meta`);
+    if (!metaResponse.ok) {
+      throw new Error(await metaResponse.text());
+    }
+    meta = await metaResponse.json();
+  } catch (err) {
+    subtitle.innerHTML =
+      "Dados do piloto não encontrados. Rode " +
+      `<code>python -m scripts.build_pilot_region --region ${slug}</code> ` +
+      "localmente e reinicie a API.";
+    return;
+  }
+
+  subtitle.innerHTML =
+    `${meta.region_name} · ${meta.dataset} · ` +
+    `variável <strong>${meta.variable}</strong> · ` +
+    `período <strong>${meta.period}</strong> · ` +
+    `metodologia: <strong>${meta.methodology_status}</strong>`;
+
+  if (!meta.future_scenarios_included) {
+    warning.textContent =
+      "Cenários futuros (SSP/GCM) ainda não incluídos — " +
+      "aguardando validação metodológica com o professor.";
+    warning.hidden = false;
+  }
+
+  const geoResponse = await fetch(`/api/pilot/${slug}`);
+  const featureCollection = await geoResponse.json();
+
+  renderFeatureCollection(featureCollection);
+}
+
+async function loadRegion(slug) {
+  resetPanel();
+
+  const periodSelect = document.getElementById("period-select");
+  periodSelect.value = "historical";
+
+  await loadHistoricalRegion(slug);
+  await loadFuturePeriodOptions(slug);
+}
+
 async function init() {
   initMap();
 
@@ -422,6 +541,11 @@ async function init() {
   select.disabled = false;
 
   select.addEventListener("change", () => loadRegion(select.value));
+
+  const periodSelect = document.getElementById("period-select");
+  periodSelect.addEventListener("change", () => {
+    loadPeriodData(select.value, periodSelect.value);
+  });
 
   await loadRegion(regions[0].slug);
 }
