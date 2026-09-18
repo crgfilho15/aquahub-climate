@@ -17,6 +17,12 @@
           <option value="">a carregar...</option>
         </select>
       </label>
+      <label id="period-select-wrapper">
+        Período:
+        <select id="period-select" disabled>
+          <option value="historical">Histórico (1981-2010)</option>
+        </select>
+      </label>
     </div>
     <p id="banner-subtitle">a carregar metadados...</p>
     <p id="banner-warning" class="pilot-warning" hidden></p>
@@ -32,6 +38,7 @@
       <div id="panel-content" hidden>
         <h2 id="panel-name"></h2>
         <p id="panel-annual"></p>
+        <p id="panel-anomaly" class="pilot-anomaly" hidden></p>
         <svg id="panel-chart" viewBox="0 0 360 180" width="100%" height="180"></svg>
         <p id="panel-source"></p>
       </div>

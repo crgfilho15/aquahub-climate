@@ -119,6 +119,174 @@ def get_pilot_metadata(region: str) -> JSONResponse:
     )
 
 
+def get_future_pilot_data_dir() -> Path:
+    """
+    Directory containing generated future/ensemble/anomaly pilot
+    artefacts (src/future_pilot_export.py's output). Overridable via
+    AQUAHUB_FUTURE_PILOT_DATA_DIR, primarily for tests.
+    """
+
+    override = os.environ.get("AQUAHUB_FUTURE_PILOT_DATA_DIR")
+
+    if override:
+        return Path(override)
+
+    return get_pilot_data_dir() / "future"
+
+
+def _future_slice_or_404(
+    variable: str,
+    scenario: str,
+    period: str,
+) -> tuple[str, str, str]:
+    """
+    Validate variable/scenario/period against config/climate.toml
+    before ever using them to build a file path - same allow-list
+    principle _region_slug_or_404 applies to the region slug.
+    """
+
+    config = load_climate_config()
+
+    configured_variables = set(
+        config["variables"].get("core", [])
+        + config["variables"].get("optional", [])
+    )
+    configured_scenarios = set(config["future"]["scenarios"])
+    configured_periods = set(config["future"]["periods"])
+
+    if variable not in configured_variables:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown variable: '{variable}'. "
+                f"Configured variables: {sorted(configured_variables)}"
+            ),
+        )
+
+    if scenario not in configured_scenarios:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown scenario: '{scenario}'. "
+                f"Configured scenarios: {sorted(configured_scenarios)}"
+            ),
+        )
+
+    if period not in configured_periods:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown period: '{period}'. "
+                f"Configured periods: {sorted(configured_periods)}"
+            ),
+        )
+
+    return variable, scenario, period
+
+
+FUTURE_BUILD_HINT_TEMPLATE = (
+    "Future pilot data for '{region}' ({variable}/{scenario}/{period}) "
+    "not found. Run 'python -m scripts.build_future_pilot_data --region "
+    "{region} --variable {variable} --scenario {scenario} --period "
+    "{period}' locally, then restart this API."
+)
+
+
+def _read_future_pilot_json(
+    region: str,
+    variable: str,
+    scenario: str,
+    period: str,
+    suffix: str,
+) -> dict:
+    stem = f"{region}_{variable}_{scenario}_{period}_future"
+    path = get_future_pilot_data_dir() / f"{stem}{suffix}"
+
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=FUTURE_BUILD_HINT_TEMPLATE.format(
+                region=region,
+                variable=variable,
+                scenario=scenario,
+                period=period,
+            ),
+        )
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/pilot/{region}/future")
+def list_available_future_slices(region: str) -> JSONResponse:
+    """
+    (variable, scenario, period) combinations that are both
+    configured and have built future pilot data for this region.
+    """
+
+    region = _region_slug_or_404(region)
+
+    config = load_climate_config()
+    data_dir = get_future_pilot_data_dir()
+
+    variables = (
+        config["variables"].get("core", [])
+        + config["variables"].get("optional", [])
+    )
+    scenarios = config["future"]["scenarios"]
+    periods = config["future"]["periods"]
+
+    available = [
+        {"variable": variable, "scenario": scenario, "period": period}
+        for variable in variables
+        for scenario in scenarios
+        for period in periods
+        if (
+            data_dir
+            / f"{region}_{variable}_{scenario}_{period}_future.geojson"
+        ).exists()
+    ]
+
+    return JSONResponse(available)
+
+
+@app.get("/api/pilot/{region}/future/{variable}/{scenario}/{period}")
+def get_future_pilot_geojson(
+    region: str,
+    variable: str,
+    scenario: str,
+    period: str,
+) -> JSONResponse:
+    region = _region_slug_or_404(region)
+    variable, scenario, period = _future_slice_or_404(
+        variable, scenario, period
+    )
+
+    return JSONResponse(
+        _read_future_pilot_json(
+            region, variable, scenario, period, ".geojson"
+        )
+    )
+
+
+@app.get("/api/pilot/{region}/future/{variable}/{scenario}/{period}/meta")
+def get_future_pilot_metadata(
+    region: str,
+    variable: str,
+    scenario: str,
+    period: str,
+) -> JSONResponse:
+    region = _region_slug_or_404(region)
+    variable, scenario, period = _future_slice_or_404(
+        variable, scenario, period
+    )
+
+    return JSONResponse(
+        _read_future_pilot_json(
+            region, variable, scenario, period, "_meta.json"
+        )
+    )
+
+
 if WEB_DIR.exists():
     app.mount(
         "/",
