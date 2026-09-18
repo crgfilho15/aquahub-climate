@@ -28,6 +28,20 @@ def make_municipalities_gdf(crs="EPSG:4326"):
 
 
 def make_monthly_df():
+    """
+    'mean_value' here (not 'mean_celsius') matches what the real
+    generic pipeline actually returns
+    (climate_pipeline.process_nuts3_climatology /
+    process_multi_nuts3_climatology, via
+    climate_processing.process_climatology_for_regions). An earlier
+    version of this fixture used 'mean_celsius', which happened to
+    match build_pilot_feature_collection's old (wrong) expectation but
+    not reality - a real run of scripts/build_pilot_region.py would
+    have raised KeyError: 'mean_celsius'. Keep this matching the real
+    pipeline's output, not whatever the function under test currently
+    expects.
+    """
+
     rows = []
     for municipality, base in [("Vila Real", 5.0), ("Sabrosa", 6.0)]:
         for month in range(1, 13):
@@ -35,7 +49,7 @@ def make_monthly_df():
                 {
                     "municipality": municipality,
                     "month": month,
-                    "mean_celsius": base + month * 0.5,
+                    "mean_value": base + month * 0.5,
                     "variable": "tas",
                     "period": "1981-2010",
                     "source": "CHELSA climatologies v2.1",
@@ -51,14 +65,14 @@ def make_annual_df():
                 "municipality": "Vila Real",
                 "variable": "tas",
                 "period": "1981-2010",
-                "mean_celsius": 12.03,
+                "mean_value": 12.03,
                 "source": "CHELSA climatologies v2.1",
             },
             {
                 "municipality": "Sabrosa",
                 "variable": "tas",
                 "period": "1981-2010",
-                "mean_celsius": 13.10,
+                "mean_value": 13.10,
                 "source": "CHELSA climatologies v2.1",
             },
         ]
