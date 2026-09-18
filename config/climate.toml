@@ -121,3 +121,30 @@ label = "Beira Interior"
 # used here. If the AquaHub project's actual intervention boundary is
 # narrower/different, adjust this list accordingly.
 nuts3_names = ["Beira Baixa", "Beiras e Serra da Estrela"]
+
+[[pilot_platform.regions]]
+slug = "tras-os-montes"
+label = "Terras de Trás-os-Montes"
+nuts3_names = ["Terras de Trás-os-Montes"]
+
+# The two Spanish zones confirmed by the professor's sketch (Sept 2026)
+# are whole NUTS II autonomous communities, not municipality-level like
+# the Portuguese regions above - so they are NOT built by
+# scripts/build_pilot_region.py (which only knows the CAOP/NUTS III
+# path; leaving nuts3_names unset makes it skip these two cleanly).
+# Boundary source: Eurostat GISCO (see docs/03 Section 7,
+# src/gisco_boundary_processing.py), identified by NUTS_ID (confirmed
+# locally against the real GISCO NUTS_RG_01M_2024_4326.gpkg file, Sept
+# 2026) rather than nuts3_names. Wiring these into an actual build
+# script (zonal-stats aggregation of CHELSA over the whole region
+# polygon, not per-municipality) is part of the deferred zone-map
+# redesign, not yet implemented.
+[[pilot_platform.regions]]
+slug = "castilla-y-leon"
+label = "Castilla y León"
+gisco_nuts_ids = ["ES41"]
+
+[[pilot_platform.regions]]
+slug = "extremadura"
+label = "Extremadura"
+gisco_nuts_ids = ["ES43"]
