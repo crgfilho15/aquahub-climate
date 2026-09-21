@@ -6,6 +6,7 @@ from src.zone_overview_export import (
     build_zone_feature_from_pilot,
     build_zone_overview_feature_collection,
     build_zone_placeholder_feature,
+    build_zones_shapefile_geodataframe,
 )
 
 
@@ -132,3 +133,49 @@ def test_build_zone_overview_feature_collection_drops_missing_geometry():
 def test_build_zone_overview_feature_collection_rejects_empty_list():
     with pytest.raises(ZoneOverviewExportError, match="At least one"):
         build_zone_overview_feature_collection([])
+
+
+def test_build_zones_shapefile_geodataframe_keeps_only_slug_label_geometry():
+    built = build_zone_feature_from_pilot(
+        slug="douro",
+        label="Douro",
+        pilot_feature_collection=make_pilot_feature_collection(),
+    )
+    placeholder = build_zone_placeholder_feature(
+        slug="castilla-y-leon",
+        label="Castilla y León",
+        geometry=mapping(box(-6.5, 40.0, -4.0, 42.5)),
+    )
+    feature_collection = build_zone_overview_feature_collection(
+        [built, placeholder]
+    )
+
+    gdf = build_zones_shapefile_geodataframe(feature_collection)
+
+    assert list(gdf.columns) == ["slug", "label", "geometry"]
+    assert gdf.crs.to_epsg() == 4326
+    assert list(gdf["slug"]) == ["castilla-y-leon", "douro"]
+    assert list(gdf["label"]) == ["Castilla y León", "Douro"]
+
+
+def test_build_zones_shapefile_geodataframe_rejects_empty_collection():
+    with pytest.raises(ZoneOverviewExportError, match="no features"):
+        build_zones_shapefile_geodataframe(
+            {"type": "FeatureCollection", "features": []}
+        )
+
+
+def test_build_zones_shapefile_geodataframe_rejects_missing_geometry():
+    feature_collection = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"slug": "extremadura", "label": "Extremadura"},
+                "geometry": None,
+            }
+        ],
+    }
+
+    with pytest.raises(ZoneOverviewExportError, match="no geometry"):
+        build_zones_shapefile_geodataframe(feature_collection)
