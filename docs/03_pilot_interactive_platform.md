@@ -337,6 +337,21 @@ these two cleanly rather than mishandling them. Building real pilot
 artefacts for the two Spanish zones still needs the zonal-stats
 aggregation step mentioned above, not yet implemented.
 
+**Update (Sept 2026):** the professor is calculating bioclimatic
+indices worldwide and needs the project's 5 zone boundaries to clip
+his own results down to just what this project needs. Once
+`zones_overview.geojson` is built (Section 4 above), run:
+
+```powershell
+python -m scripts.export_zones_shapefile
+```
+
+This converts it into a shapefile (`data/processed/pilot/aquahub_zones.shp`
++ sidecar files, keyed by `slug`/`label` only - not the internal
+`built`/temperature properties) and zips it
+(`aquahub_zones.zip`) ready to send. See
+`src/zone_overview_export.build_zones_shapefile_geodataframe`.
+
 ---
 
 ### 8. Testing

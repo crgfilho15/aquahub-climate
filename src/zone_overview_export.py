@@ -145,6 +145,56 @@ def build_zone_placeholder_feature(
     }
 
 
+def build_zones_shapefile_geodataframe(
+    feature_collection: dict,
+) -> gpd.GeoDataFrame:
+    """
+    Turn the all-zones overview FeatureCollection (GET /api/pilot/zones'
+    output) into a GeoDataFrame ready to export as a shapefile - e.g.
+    for the professor to clip his own worldwide bioclimatic index
+    calculations to just AquaHub's intervention zones.
+
+    Only "slug" and "label" are kept as attributes: a shapefile's .dbf
+    format cannot store the nested "municipality_values" list
+    zone_overview_export produces for built zones, and the professor
+    only needs the zone boundaries and names, not our internal
+    "built"/temperature bookkeeping.
+
+    Parameters
+    ----------
+    feature_collection : dict
+        A GeoJSON FeatureCollection of zone features, each with
+        "slug"/"label" properties and a polygon/multipolygon geometry
+        (as built by build_zone_overview_feature_collection).
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        One row per zone, columns "slug", "label", "geometry", in
+        EPSG:4326, sorted by slug for a deterministic file.
+    """
+
+    features = feature_collection.get("features") or []
+
+    if not features:
+        raise ZoneOverviewExportError(
+            "Zone overview feature collection has no features."
+        )
+
+    for feature in features:
+        if feature.get("geometry") is None:
+            raise ZoneOverviewExportError(
+                f"Zone '{feature.get('properties', {}).get('slug')}' "
+                "has no geometry."
+            )
+
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = gdf[["slug", "label", "geometry"]]
+    gdf = gdf.sort_values("slug").reset_index(drop=True)
+
+    return gdf
+
+
 def build_zone_overview_feature_collection(
     zone_features: list[dict],
 ) -> dict:
