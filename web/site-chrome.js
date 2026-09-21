@@ -50,9 +50,10 @@ function renderFooter() {
       <div>
         <div class="brand">${BRAND_MARK} AquaHub Climate</div>
         <p>
-          Climate and agroclimatic atlas for the Douro river basin,
-          covering Douro, Beira Interior and Terras de Trás-os-Montes
-          in Portugal, and Castilla y León and Extremadura in Spain.
+          Climate and agroclimatic atlas covering five intervention
+          zones across Portugal and Spain: Douro, Beira Interior and
+          Terras de Trás-os-Montes, and Castilla y León and
+          Extremadura.
         </p>
       </div>
       <div>
