@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Atlas Climático — AquaHub Climate</title>
+  <title>Climate Atlas — AquaHub Climate</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="site.css" />
   <link rel="stylesheet" href="style.css" />
@@ -13,41 +13,42 @@
 
   <header id="banner">
     <div id="banner-heading">
-      <h1>Atlas Climático</h1>
+      <h1>Climate Atlas</h1>
       <div id="filters">
         <label class="filter-field">
-          Cultura:
+          Crop:
           <select id="cultura-select" disabled>
-            <option value="">a aguardar dados do professor</option>
+            <option value="">awaiting data from the professor</option>
           </select>
         </label>
         <label class="filter-field">
-          Índice:
+          Index:
           <select id="indice-select" disabled>
-            <option value="">selecione a cultura</option>
+            <option value="">select a crop</option>
           </select>
         </label>
         <label class="filter-field">
-          Período:
+          Period:
           <select id="period-select">
-            <option value="historical">Histórico (1981-2010)</option>
+            <option value="historical">Historical (1981-2010)</option>
           </select>
         </label>
         <label class="filter-field">
           SSP:
           <select id="ssp-select" disabled>
-            <option value="">n/a (histórico)</option>
+            <option value="">n/a (historical)</option>
           </select>
         </label>
       </div>
     </div>
     <p id="banner-subtitle">
-      Clique numa zona no mapa para ver a sua distribuição de valores.
+      Click a zone on the map to see its value distribution.
     </p>
     <p id="banner-warning" class="pilot-warning">
-      Cultura e Índice ainda não estão disponíveis — o professor está a
-      calcular os índices bioclimáticos por cultura e vai entregá-los
-      ao projeto. Período e SSP já usam dados reais de temperatura.
+      Crop and Index are not available yet — the professor is
+      calculating the crop-specific bioclimatic indices and will
+      deliver them to the project. Period and SSP already use real
+      temperature data.
     </p>
   </header>
 
@@ -56,13 +57,13 @@
 
     <aside id="panel">
       <div id="panel-empty">
-        <p>Clique numa zona no mapa para ver a sua climatologia.</p>
+        <p>Click a zone on the map to see its climatology.</p>
       </div>
       <div id="panel-content" hidden>
         <h2 id="panel-name"></h2>
         <p id="panel-annual"></p>
         <p id="panel-pending" class="pilot-warning" hidden>
-          Ainda não há dados climáticos processados para esta zona.
+          No processed climate data is available for this zone yet.
         </p>
         <div id="panel-distribution-wrapper" hidden>
           <p id="panel-distribution-caption" class="panel-caption"></p>

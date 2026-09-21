@@ -1,5 +1,5 @@
 // Shared header/footer for every page of the site. Each page sets
-// document.body.dataset.activePage (e.g. "inicio", "atlas") so the
+// document.body.dataset.activePage (e.g. "home", "atlas") so the
 // matching nav link gets highlighted, and includes a <div
 // id="site-header"></div> / <div id="site-footer"></div> pair for
 // this script to fill in. Kept as one small script rather than
@@ -15,12 +15,12 @@ const BRAND_MARK = `
 `;
 
 const NAV_ITEMS = [
-  { key: "inicio", label: "Início", href: "index.html" },
-  { key: "sobre", label: "Sobre o Projeto", href: "sobre.html" },
-  { key: "zonas", label: "Zonas de Intervenção", href: "zonas.html" },
-  { key: "atlas", label: "Atlas Climático", href: "atlas.html" },
-  { key: "equipa", label: "Equipa", href: "equipa.html" },
-  { key: "contacto", label: "Contacto", href: "contacto.html" },
+  { key: "home", label: "Home", href: "index.html" },
+  { key: "about", label: "About the Project", href: "about.html" },
+  { key: "zones", label: "Intervention Zones", href: "zones.html" },
+  { key: "atlas", label: "Climate Atlas", href: "atlas.html" },
+  { key: "team", label: "Team", href: "team.html" },
+  { key: "contact", label: "Contact", href: "contact.html" },
 ];
 
 function renderHeader(activePage) {
@@ -50,24 +50,24 @@ function renderFooter() {
       <div>
         <div class="brand">${BRAND_MARK} AquaHub Climate</div>
         <p>
-          Atlas climático e agroclimático para a bacia hidrográfica do
-          Douro, com expansão prevista à Beira Interior, Trás-os-Montes,
-          Castilla y León e Extremadura.
+          Climate and agroclimatic atlas for the Douro river basin,
+          covering Douro, Beira Interior and Terras de Trás-os-Montes
+          in Portugal, and Castilla y León and Extremadura in Spain.
         </p>
       </div>
       <div>
-        <h4>Navegação</h4>
+        <h4>Navigation</h4>
         <ul>${quickLinks}</ul>
       </div>
       <div>
-        <h4>Projeto</h4>
+        <h4>Project</h4>
         <p>Interreg VI-A POCTEP</p>
         <p>Universidade de Trás-os-Montes e Alto Douro (UTAD)</p>
-        <p>Bolsa de Investigação BI/UTAD/46/2026</p>
+        <p>Research Fellowship BI/UTAD/46/2026</p>
       </div>
     </div>
     <div class="footer-bottom">
-      © ${new Date().getFullYear()} AquaHub Climate — projeto de investigação em desenvolvimento.
+      © ${new Date().getFullYear()} AquaHub Climate — research project in active development.
     </div>
   `;
 }
