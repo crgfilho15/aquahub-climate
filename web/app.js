@@ -72,7 +72,7 @@ function gaussianKernelDensity(values, gridSize = 120) {
 // nav, and a rug plot along the axis showing each real observed value
 // under the smoothed curve. Today "values" is one annual mean
 // temperature per municipality within the clicked zone (historical or
-// a future ensemble mean, depending on the Período/SSP filters) -
+// a future ensemble mean, depending on the Period/SSP filters) -
 // this is a provisional choice pending confirmation with the
 // professor of what the distribution axis should ultimately show
 // (see docs/03).
@@ -224,7 +224,7 @@ function drawDistributionChart(svg, values, options = {}) {
     highlight.setAttribute("visibility", "visible");
 
     const valueText = `${point.x.toFixed(1)}${unit}`;
-    const labelText = "densidade estimada";
+    const labelText = "estimated density";
 
     tooltipValue.textContent = valueText;
     tooltipValue.setAttribute("x", 0);
@@ -283,8 +283,8 @@ function drawDistributionChart(svg, values, options = {}) {
   svg.setAttribute("role", "img");
   svg.setAttribute(
     "aria-label",
-    "Distribuição de valores do índice selecionado na zona, use as " +
-    "setas para navegar"
+    "Distribution of values for the selected index in the zone, use " +
+    "the arrow keys to navigate"
   );
 
   let focusedIndex = Math.floor(grid.length / 2);
@@ -309,13 +309,13 @@ function drawDistributionChart(svg, values, options = {}) {
 // them and will deliver them to the project. So the crop list itself
 // is shown (real), but the select stays disabled until real index
 // data exists (see index.html's banner-warning note).
-const CULTURAS = ["Vinha", "Oliveira", "Amendoeira", "Cerejeira"];
+const CULTURAS = ["Grapevine", "Olive", "Almond", "Cherry"];
 
 // Mirrors config/climate.toml's [future] section (periods/scenarios).
 const FUTURE_PERIODS = ["2011-2040", "2041-2070", "2071-2100"];
 const FUTURE_SCENARIOS = [
-  { value: "ssp126", label: "SSP1-2.6 (conservador)" },
-  { value: "ssp585", label: "SSP5-8.5 (crítico)" },
+  { value: "ssp126", label: "SSP1-2.6 (moderate)" },
+  { value: "ssp585", label: "SSP5-8.5 (severe)" },
 ];
 const PILOT_VARIABLE = "tas";
 
@@ -342,7 +342,7 @@ function buildZonesLegend(min, max) {
     const steps = 5;
 
     let html =
-      '<div id="legend"><strong>Temp. média anual (°C)</strong><br>';
+      '<div id="legend"><strong>Mean annual temp. (°C)</strong><br>';
 
     for (let i = 0; i < steps; i += 1) {
       const value = min + ((max - min) * i) / (steps - 1);
@@ -352,7 +352,7 @@ function buildZonesLegend(min, max) {
 
     html +=
       '<span class="swatch" style="background:#c7ccd3"></span>' +
-      "dados pendentes</div>";
+      "pending data</div>";
     div.innerHTML = html;
 
     return div;
@@ -396,17 +396,17 @@ async function loadZones() {
     featureCollection = await response.json();
   } catch (err) {
     subtitle.innerHTML =
-      "Nenhuma zona construída ainda. Rode " +
-      "<code>python -m scripts.build_zone_overview</code> localmente " +
-      "e reinicie a API.";
+      "No zone has been built yet. Run " +
+      "<code>python -m scripts.build_zone_overview</code> locally " +
+      "and restart the API.";
     return;
   }
 
   if (!featureCollection.features || featureCollection.features.length === 0) {
     subtitle.innerHTML =
-      "Nenhuma zona construída ainda. Rode " +
-      "<code>python -m scripts.build_zone_overview</code> localmente " +
-      "e reinicie a API.";
+      "No zone has been built yet. Run " +
+      "<code>python -m scripts.build_zone_overview</code> locally " +
+      "and restart the API.";
     return;
   }
 
@@ -435,7 +435,7 @@ async function loadZones() {
       const label = feature.properties.built
         ? `${feature.properties.label}: ` +
           `${feature.properties.annual_mean_celsius.toFixed(2)} °C`
-        : `${feature.properties.label} (dados pendentes)`;
+        : `${feature.properties.label} (pending data)`;
       layer.bindTooltip(label);
       layer.on("click", () => selectZone(feature.properties.slug));
     },
@@ -449,7 +449,7 @@ async function loadZones() {
   }
 
   subtitle.textContent =
-    "Clique numa zona no mapa para ver a sua distribuição de valores.";
+    "Click a zone on the map to see its value distribution.";
 }
 
 function showDistribution(values, unit, caption) {
@@ -492,7 +492,7 @@ async function selectZone(slug) {
 
   if (period === "historical") {
     annualEl.textContent =
-      "Temperatura média anual (histórico 1981-2010): " +
+      "Mean annual temperature (historical 1981-2010): " +
       `${feature.properties.annual_mean_celsius.toFixed(2)} °C`;
 
     const values = feature.properties.municipality_values.map(
@@ -501,8 +501,8 @@ async function selectZone(slug) {
     showDistribution(
       values,
       "°C",
-      "Distribuição da temperatura média anual por município na " +
-      "zona (provisório — pendente confirmação com o professor)"
+      "Distribution of mean annual temperature by municipality in " +
+      "the zone (provisional — pending confirmation with the professor)"
     );
     return;
   }
@@ -510,12 +510,12 @@ async function selectZone(slug) {
   const scenario = document.getElementById("ssp-select").value;
 
   if (!scenario) {
-    annualEl.textContent = "Selecione um cenário SSP.";
+    annualEl.textContent = "Select an SSP scenario.";
     distWrapper.hidden = true;
     return;
   }
 
-  annualEl.textContent = "a carregar dados futuros...";
+  annualEl.textContent = "loading future data...";
   distWrapper.hidden = true;
 
   try {
@@ -537,21 +537,21 @@ async function selectZone(slug) {
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
 
     annualEl.textContent =
-      `Temperatura média anual (${scenario.toUpperCase()} · ${period}): ` +
+      `Mean annual temperature (${scenario.toUpperCase()} · ${period}): ` +
       `${mean.toFixed(2)} °C`;
 
     showDistribution(
       values,
       "°C",
-      "Distribuição da temperatura média anual (ensemble) por " +
-      "município na zona (provisório — pendente confirmação com o " +
-      "professor)"
+      "Distribution of mean annual temperature (ensemble) by " +
+      "municipality in the zone (provisional — pending confirmation " +
+      "with the professor)"
     );
   } catch (err) {
     annualEl.textContent =
-      "Dados futuros não encontrados para esta zona. Rode " +
-      "python -m scripts.build_future_pilot_data localmente e " +
-      "reinicie a API.";
+      "No future data found for this zone. Run " +
+      "python -m scripts.build_future_pilot_data locally and " +
+      "restart the API.";
     distWrapper.hidden = true;
   }
 }
@@ -569,7 +569,7 @@ function setupFilters() {
   FUTURE_PERIODS.forEach((period) => {
     const option = document.createElement("option");
     option.value = period;
-    option.textContent = `Futuro · ${period}`;
+    option.textContent = `Future · ${period}`;
     periodSelect.appendChild(option);
   });
 
@@ -581,7 +581,7 @@ function setupFilters() {
     if (periodSelect.value === "historical") {
       const option = document.createElement("option");
       option.value = "";
-      option.textContent = "n/a (histórico)";
+      option.textContent = "n/a (historical)";
       sspSelect.appendChild(option);
       sspSelect.disabled = true;
       return;

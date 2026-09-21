@@ -117,10 +117,21 @@ data/processed/pilot/zones_overview.geojson
         │  clicked with a future Período/SSP selected — static file
         │  reads, no processing)
         ▼
-web/index.html + web/app.js
+web/atlas.html + web/app.js
 (Cultura/Índice/Período/SSP filters + single Leaflet map showing all
  configured zones at once + click-to-select distribution panel)
 ```
+
+**Update (Sept 2026):** the platform is now one page (`web/atlas.html`) inside
+a small multi-page site (`web/index.html` home, `sobre.html`,
+`zonas.html`, `equipa.html`, `contacto.html`), inspired by - not copied
+from - the professor's own project site
+(`coaclimaterisk.utad.pt`). `web/site.css`/`web/site-chrome.js` hold
+the shared navigation/footer used by every page; `style.css` stays
+scoped to the platform itself (map/panel/legend), loaded only on
+`atlas.html` alongside `site.css`. `atlas.html` opts out of the normal
+scrolling page layout (`body.app-shell` in `site.css`) so the map keeps
+the full remaining viewport height under the shared nav bar.
 
 `data/processed/pilot/` is not versioned in Git (it falls under the
 existing `data/processed/` ignore rule) and must be regenerated locally.
@@ -325,6 +336,21 @@ and a different aggregation (whole-region, not per-municipality) -
 these two cleanly rather than mishandling them. Building real pilot
 artefacts for the two Spanish zones still needs the zonal-stats
 aggregation step mentioned above, not yet implemented.
+
+**Update (Sept 2026):** the professor is calculating bioclimatic
+indices worldwide and needs the project's 5 zone boundaries to clip
+his own results down to just what this project needs. Once
+`zones_overview.geojson` is built (Section 4 above), run:
+
+```powershell
+python -m scripts.export_zones_shapefile
+```
+
+This converts it into a shapefile (`data/processed/pilot/aquahub_zones.shp`
++ sidecar files, keyed by `slug`/`label` only - not the internal
+`built`/temperature properties) and zips it
+(`aquahub_zones.zip`) ready to send. See
+`src/zone_overview_export.build_zones_shapefile_geodataframe`.
 
 ---
 

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Climate Atlas — AquaHub Climate</title>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="site.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-active-page="atlas" class="app-shell">
+  <div id="site-header"></div>
+
+  <header id="banner">
+    <div id="banner-heading">
+      <h1>Climate Atlas</h1>
+      <div id="filters">
+        <label class="filter-field">
+          Crop:
+          <select id="cultura-select" disabled>
+            <option value="">awaiting data from the professor</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          Index:
+          <select id="indice-select" disabled>
+            <option value="">select a crop</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          Period:
+          <select id="period-select">
+            <option value="historical">Historical (1981-2010)</option>
+          </select>
+        </label>
+        <label class="filter-field">
+          SSP:
+          <select id="ssp-select" disabled>
+            <option value="">n/a (historical)</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <p id="banner-subtitle">
+      Click a zone on the map to see its value distribution.
+    </p>
+    <p id="banner-warning" class="pilot-warning">
+      Crop and Index are not available yet — the professor is
+      calculating the crop-specific bioclimatic indices and will
+      deliver them to the project. Period and SSP already use real
+      temperature data.
+    </p>
+  </header>
+
+  <main>
+    <div id="map"></div>
+
+    <aside id="panel">
+      <div id="panel-empty">
+        <p>Click a zone on the map to see its climatology.</p>
+      </div>
+      <div id="panel-content" hidden>
+        <h2 id="panel-name"></h2>
+        <p id="panel-annual"></p>
+        <p id="panel-pending" class="pilot-warning" hidden>
+          No processed climate data is available for this zone yet.
+        </p>
+        <div id="panel-distribution-wrapper" hidden>
+          <p id="panel-distribution-caption" class="panel-caption"></p>
+          <svg
+            id="panel-distribution-chart"
+            viewBox="0 0 300 160"
+            width="100%"
+            height="160"
+          ></svg>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="site-chrome.js"></script>
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

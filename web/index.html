@@ -1,80 +1,127 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AquaHub Climate — Piloto</title>
-  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
-  <link rel="stylesheet" href="style.css" />
+  <title>AquaHub Climate</title>
+  <link rel="stylesheet" href="site.css" />
 </head>
-<body>
-  <header id="banner">
-    <div id="banner-heading">
-      <h1>AquaHub Climate — Piloto</h1>
-      <div id="filters">
-        <label class="filter-field">
-          Cultura:
-          <select id="cultura-select" disabled>
-            <option value="">a aguardar dados do professor</option>
-          </select>
-        </label>
-        <label class="filter-field">
-          Índice:
-          <select id="indice-select" disabled>
-            <option value="">selecione a cultura</option>
-          </select>
-        </label>
-        <label class="filter-field">
-          Período:
-          <select id="period-select">
-            <option value="historical">Histórico (1981-2010)</option>
-          </select>
-        </label>
-        <label class="filter-field">
-          SSP:
-          <select id="ssp-select" disabled>
-            <option value="">n/a (histórico)</option>
-          </select>
-        </label>
-      </div>
+<body data-active-page="home">
+  <div id="site-header"></div>
+
+  <section class="hero">
+    <p class="hero-eyebrow">Interreg VI-A POCTEP · UTAD</p>
+    <h1>A cross-border climate atlas</h1>
+    <p class="lead">
+      AquaHub Climate brings together historical climate data and
+      future scenarios in one interactive platform, built to support
+      agricultural decisions across five zones in Portugal and Spain:
+      Douro, Beira Interior and Terras de Trás-os-Montes, and Castilla
+      y León and Extremadura.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="atlas.html">Explore the Atlas</a>
+      <a class="btn btn-secondary" href="about.html">About the Project</a>
     </div>
-    <p id="banner-subtitle">
-      Clique numa zona no mapa para ver a sua distribuição de valores.
-    </p>
-    <p id="banner-warning" class="pilot-warning">
-      Cultura e Índice ainda não estão disponíveis — o professor está a
-      calcular os índices bioclimáticos por cultura e vai entregá-los
-      ao projeto. Período e SSP já usam dados reais de temperatura.
-    </p>
-  </header>
+  </section>
 
-  <main>
-    <div id="map"></div>
+  <main class="site-main">
+    <section>
+      <p class="section-eyebrow">What we do</p>
+      <h2>Climate and agriculture, in one platform</h2>
+      <p>
+        The project combines high-resolution climatologies (CHELSA)
+        with the administrative boundaries of Portugal and Spain to
+        build a climate and agroclimatic atlas of the region. The goal
+        is to support four key crops — grapevine, olive, almond and
+        cherry — with clear climate information about both the present
+        and the climate-change scenarios projected through the end of
+        the century.
+      </p>
+    </section>
 
-    <aside id="panel">
-      <div id="panel-empty">
-        <p>Clique numa zona no mapa para ver a sua climatologia.</p>
-      </div>
-      <div id="panel-content" hidden>
-        <h2 id="panel-name"></h2>
-        <p id="panel-annual"></p>
-        <p id="panel-pending" class="pilot-warning" hidden>
-          Ainda não há dados climáticos processados para esta zona.
-        </p>
-        <div id="panel-distribution-wrapper" hidden>
-          <p id="panel-distribution-caption" class="panel-caption"></p>
-          <svg
-            id="panel-distribution-chart"
-            viewBox="0 0 300 160"
-            width="100%"
-            height="160"
-          ></svg>
+    <section>
+      <p class="section-eyebrow">Where we are</p>
+      <h2>Current status</h2>
+      <p>
+        The platform already processes real temperature data for the
+        Portuguese zones, with future scenarios already integrated.
+        Extending coverage to Spain and delivering the crop-specific
+        bioclimatic indices are both underway, in coordination with the
+        research team.
+      </p>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="value">5</div>
+          <div class="label">intervention zones configured</div>
+        </div>
+        <div class="stat">
+          <div class="value">3</div>
+          <div class="label">zones with real climate data</div>
+        </div>
+        <div class="stat">
+          <div class="value">2</div>
+          <div class="label">future scenarios (SSP) integrated</div>
+        </div>
+        <div class="stat">
+          <div class="value">4</div>
+          <div class="label">target crops</div>
         </div>
       </div>
-    </aside>
+    </section>
+
+    <section>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M4 18l5-8 4 5 3-4 4 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h3>Climate Atlas</h3>
+          <p>
+            Explore the interactive map with the project's 5 zones,
+            historical temperatures and future scenarios.
+          </p>
+          <p><a href="atlas.html">Open the atlas →</a></p>
+        </div>
+        <div class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h3>Intervention Zones</h3>
+          <p>
+            Meet the project's 5 zones across Portugal and Spain, and
+            the data status of each.
+          </p>
+          <p><a href="zones.html">See the zones →</a></p>
+        </div>
+        <div class="card">
+          <div class="card-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M4 4h16v12H7l-3 4V4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h3>About the Project</h3>
+          <p>
+            Institutional background, objectives, and what is still to
+            be confirmed with the research team.
+          </p>
+          <p><a href="about.html">Learn more →</a></p>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <script src="vendor/leaflet/leaflet.js"></script>
-  <script src="app.js"></script>
+  <div class="funding-band">
+    Funded under <strong>Interreg VI-A POCTEP</strong> · developed at
+    the <strong>Universidade de Trás-os-Montes e Alto Douro (UTAD)</strong>
+  </div>
+
+  <div id="site-footer"></div>
+
+  <script src="site-chrome.js"></script>
 </body>
 </html>
