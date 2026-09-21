@@ -84,7 +84,8 @@ header#banner {
 
 main {
   display: flex;
-  height: calc(100vh - 62px);
+  flex: 1;
+  min-height: 0;
 }
 
 #map {
