@@ -1,0 +1,11 @@
+{
+  "slug": "douro",
+  "region_type": "NUTS3",
+  "region_name": "Douro",
+  "variable": "tas",
+  "period": "1981-2010",
+  "dataset": "CHELSA climatologies v2.1",
+  "methodology_status": "provisional",
+  "future_scenarios_included": false,
+  "generated_at": "2026-09-22T08:42:30.144211+00:00"
+}

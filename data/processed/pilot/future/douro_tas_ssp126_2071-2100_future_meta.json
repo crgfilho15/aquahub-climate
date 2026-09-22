@@ -1,0 +1,18 @@
+{
+  "slug": "douro",
+  "region_name": "Douro",
+  "variable": "tas",
+  "scenario": "ssp126",
+  "period": "2071-2100",
+  "dataset": "CHELSA-climatologies-v2.1-CMIP6",
+  "gcms": [
+    "GFDL-ESM4",
+    "IPSL-CM6A-LR",
+    "MPI-ESM1-2-HR",
+    "MRI-ESM2-0",
+    "UKESM1-0-LL"
+  ],
+  "ensemble_method": "equal_weight_mean",
+  "methodology_status": "provisional",
+  "generated_at": "2026-09-18T13:17:55.856655+00:00"
+}

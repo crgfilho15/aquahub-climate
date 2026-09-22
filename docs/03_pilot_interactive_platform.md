@@ -426,3 +426,40 @@ replace running the pipeline against real data locally.
   `docs/02`, item 44).
 - The OpenStreetMap basemap requires internet access at runtime; the
   rest of the platform (Leaflet, the API, the data) does not.
+
+---
+
+### 10. Deploying (e.g. Vercel)
+
+`api/main.py` (Section 3) serves `data/processed/pilot/*.geojson`
+straight off disk at request time - it never runs the build scripts
+itself. A stateless host like Vercel deploys whatever is in the Git
+tree and nothing else; it does not have `data/raw/chelsa` or
+`data/raw/boundaries` available to run the pipeline during the build,
+so it cannot regenerate that data either.
+
+That means `data/processed/pilot/` must be committed to Git, not
+generated on the host. It's the one exception to the
+"`data/processed/` is derived, don't commit it" rule in `.gitignore`
+(`data/raw/` - the actual licensed source datasets - stays untracked
+as before; only the small pilot GeoJSON/JSON output is tracked).
+
+One-time (and after-the-fact, whenever the underlying data changes)
+steps, run locally where `data/raw/` is available:
+
+```
+python -m scripts.build_pilot_region --region douro
+python -m scripts.build_pilot_region --region tras-os-montes
+python -m scripts.build_pilot_region --region beira-interior   # once its CAOP/CHELSA data is available
+python -m scripts.build_zone_overview --gisco-file data/raw/boundaries/NUTS_RG_01M_2024_4326.gpkg
+python -m scripts.build_future_pilot_data --region douro ...    # if the future/SSP slices are wanted online too
+git add data/processed/pilot
+git commit -m "data: refresh pilot platform data"
+git push
+```
+
+Once those files are committed, every Vercel deploy from that branch
+serves them directly - no script needs to run on Vercel, and nothing
+needs to be re-run just because a new deploy happened. Re-run the
+commands above (and commit again) only when the underlying CHELSA/CAOP
+data actually changes.

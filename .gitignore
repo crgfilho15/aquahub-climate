@@ -47,10 +47,16 @@ data/raw/
 
 # ============================================================
 # AquaHub - Processed data
-# Generated datasets can be reproduced from the pipeline
+# Generated datasets can be reproduced from the pipeline, EXCEPT
+# data/processed/pilot/: that's the small GeoJSON/JSON output the
+# interactive platform's API (api/main.py) serves directly from disk.
+# It must be committed, otherwise a stateless deploy (e.g. Vercel) has
+# no data to serve and every endpoint 404s with a "run the build
+# script locally" hint - see docs/03, Section 10.
 # ============================================================
 
-data/processed/
+data/processed/*
+!data/processed/pilot/
 
 # ============================================================
 # AquaHub - Generated outputs
