@@ -7,14 +7,22 @@ distribution panel.
 This script must be run locally, after scripts/build_pilot_region.py
 has already built whichever Portuguese zones it can (data/raw/chelsa +
 data/raw/boundaries/Continente_CAOP2025.gpkg must be available for
-those, exactly as build_pilot_region.py requires).
+those, exactly as build_pilot_region.py requires) - that data is used
+to dissolve each zone's outline, not to display a temperature value
+(see below).
 
-The 2 Spanish zones (Castilla y León, Extremadura) do not have a
-climate-data pipeline yet (see docs/03 Section 7) - their outline can
-still be shown on the map, marked as pending data, if a local GISCO
-NUTS boundaries file is passed via --gisco-file. Without that flag,
-they are silently omitted from the output (the frontend only draws
-zones with known geometry).
+**Update (Sept 2026):** every zone is written as "built": False now -
+the professor is calculating the crop-specific bioclimatic indices
+himself and delivering them directly, so the map no longer shows the
+temperature index. What varies per zone is only whether its outline is
+known: the Portuguese zones get theirs by dissolving
+scripts/build_pilot_region.py's output; the 2 Spanish zones (Castilla
+y León, Extremadura), which still have no climate-data pipeline (see
+docs/03 Section 7), get theirs from a local GISCO NUTS boundaries file
+passed via --gisco-file. A zone with neither source available is
+silently omitted from the output (the frontend only draws zones with
+known geometry) - all zones with a known outline render identically,
+pending.
 
 Usage
 -----
@@ -36,7 +44,7 @@ import geopandas as gpd
 from src.climate_config import load_climate_config
 from src.gisco_boundary_processing import get_regions_by_nuts_id
 from src.zone_overview_export import (
-    build_zone_feature_from_pilot,
+    build_zone_outline_from_pilot,
     build_zone_overview_feature_collection,
     build_zone_placeholder_feature,
 )
@@ -50,9 +58,10 @@ def build_zone(
     pilot_data_dir: Path,
     gisco_gdf: gpd.GeoDataFrame | None,
 ) -> dict:
-    """Build one zone's overview feature: dissolved-and-averaged if its
-    pilot data has already been built, a placeholder (with geometry if
-    a GISCO source is available) otherwise."""
+    """Build one zone's overview feature: always "built": False (see
+    module docstring) - its outline comes from dissolving the region's
+    pilot municipalities if already built, from GISCO if a source is
+    available, or is omitted if neither exists."""
 
     slug = region_config["slug"]
     label = region_config["label"]
@@ -63,8 +72,8 @@ def build_zone(
         pilot_feature_collection = json.loads(
             pilot_path.read_text(encoding="utf-8")
         )
-        print(f"  {label} ({slug}): built, dissolving municipalities ...")
-        return build_zone_feature_from_pilot(
+        print(f"  {label} ({slug}): dissolving outline from pilot data ...")
+        return build_zone_outline_from_pilot(
             slug=slug,
             label=label,
             pilot_feature_collection=pilot_feature_collection,
@@ -144,14 +153,10 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    built_count = sum(
-        1
-        for feature in feature_collection["features"]
-        if feature["properties"]["built"]
-    )
     print(
         f"\nWrote {len(feature_collection['features'])} zones "
-        f"({built_count} with climate data) to {OUTPUT_PATH}"
+        f"(all pending - awaiting the professor's bioclimatic indices) "
+        f"to {OUTPUT_PATH}"
     )
 
 

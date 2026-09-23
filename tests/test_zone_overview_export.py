@@ -3,7 +3,7 @@ from shapely.geometry import box, mapping
 
 from src.zone_overview_export import (
     ZoneOverviewExportError,
-    build_zone_feature_from_pilot,
+    build_zone_outline_from_pilot,
     build_zone_overview_feature_collection,
     build_zone_placeholder_feature,
     build_zones_shapefile_geodataframe,
@@ -36,8 +36,8 @@ def make_pilot_feature_collection():
     }
 
 
-def test_build_zone_feature_from_pilot_dissolves_and_averages():
-    result = build_zone_feature_from_pilot(
+def test_build_zone_outline_from_pilot_dissolves_geometry_only():
+    result = build_zone_outline_from_pilot(
         slug="douro",
         label="Douro",
         pilot_feature_collection=make_pilot_feature_collection(),
@@ -46,21 +46,16 @@ def test_build_zone_feature_from_pilot_dissolves_and_averages():
     assert result["type"] == "Feature"
     assert result["properties"]["slug"] == "douro"
     assert result["properties"]["label"] == "Douro"
-    assert result["properties"]["built"] is True
-
-    assert result["properties"]["annual_mean_celsius"] == 13.0
-
-    assert result["properties"]["municipality_values"] == [
-        {"municipio": "Vila Real", "annual_mean_celsius": 12.0},
-        {"municipio": "Sabrosa", "annual_mean_celsius": 14.0},
-    ]
+    assert result["properties"]["built"] is False
+    assert "annual_mean_celsius" not in result["properties"]
+    assert "municipality_values" not in result["properties"]
 
     assert result["geometry"]["type"] in {"Polygon", "MultiPolygon"}
 
 
-def test_build_zone_feature_from_pilot_rejects_empty_features():
+def test_build_zone_outline_from_pilot_rejects_empty_features():
     with pytest.raises(ZoneOverviewExportError, match="no features"):
-        build_zone_feature_from_pilot(
+        build_zone_outline_from_pilot(
             slug="douro",
             label="Douro",
             pilot_feature_collection={"type": "FeatureCollection", "features": []},
@@ -92,7 +87,7 @@ def test_build_zone_placeholder_feature_without_geometry():
 
 
 def test_build_zone_overview_feature_collection_combines_features():
-    built = build_zone_feature_from_pilot(
+    outline = build_zone_outline_from_pilot(
         slug="douro",
         label="Douro",
         pilot_feature_collection=make_pilot_feature_collection(),
@@ -103,7 +98,7 @@ def test_build_zone_overview_feature_collection_combines_features():
         geometry=mapping(box(-6.5, 40.0, -4.0, 42.5)),
     )
 
-    result = build_zone_overview_feature_collection([built, placeholder])
+    result = build_zone_overview_feature_collection([outline, placeholder])
 
     assert result["type"] == "FeatureCollection"
     assert len(result["features"]) == 2
@@ -111,10 +106,13 @@ def test_build_zone_overview_feature_collection_combines_features():
         "douro",
         "castilla-y-leon",
     }
+    assert all(
+        f["properties"]["built"] is False for f in result["features"]
+    )
 
 
 def test_build_zone_overview_feature_collection_drops_missing_geometry():
-    built = build_zone_feature_from_pilot(
+    outline = build_zone_outline_from_pilot(
         slug="douro",
         label="Douro",
         pilot_feature_collection=make_pilot_feature_collection(),
@@ -124,7 +122,7 @@ def test_build_zone_overview_feature_collection_drops_missing_geometry():
         label="Extremadura",
     )
 
-    result = build_zone_overview_feature_collection([built, no_geometry])
+    result = build_zone_overview_feature_collection([outline, no_geometry])
 
     assert len(result["features"]) == 1
     assert result["features"][0]["properties"]["slug"] == "douro"
@@ -136,7 +134,7 @@ def test_build_zone_overview_feature_collection_rejects_empty_list():
 
 
 def test_build_zones_shapefile_geodataframe_keeps_only_slug_label_geometry():
-    built = build_zone_feature_from_pilot(
+    outline = build_zone_outline_from_pilot(
         slug="douro",
         label="Douro",
         pilot_feature_collection=make_pilot_feature_collection(),
@@ -147,7 +145,7 @@ def test_build_zones_shapefile_geodataframe_keeps_only_slug_label_geometry():
         geometry=mapping(box(-6.5, 40.0, -4.0, 42.5)),
     )
     feature_collection = build_zone_overview_feature_collection(
-        [built, placeholder]
+        [outline, placeholder]
     )
 
     gdf = build_zones_shapefile_geodataframe(feature_collection)

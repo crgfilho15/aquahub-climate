@@ -668,6 +668,19 @@ layer at a time, rather than as one big-bang release.*
 anomaly view (verified end-to-end with synthetic data); pending one
 real run against the user's actual future data.
 
+**Update (Sept 2026): the map's temperature display was retired.**
+With Phase 7 confirmed as "ingest the professor's delivered indices,
+don't compute our own" (see the Track A table above), showing
+`annual_mean_celsius` on the map risked being mistaken for a real
+bioclimatic index. `scripts/build_zone_overview.py`/
+`src/zone_overview_export.py` now mark every zone `"built": false`
+regardless of whether its temperature pipeline has run, so all 5 zones
+render as "pending" - the same treatment Castilla y León/Extremadura
+already had. This is a display-layer change only: the temperature
+pipeline itself (Phases 1-6) is untouched and keeps working/testing
+normally, so it stays available later as an independent cross-check
+once real index data is ingested (see `docs/03` Section 6).
+
 #### Phase 10 — Scale beyond Douro — 🟡 infrastructure done (Sept 2026), Beira Interior data pending
 
 *Independent track, ran in parallel once Phase 1 was stable.*
