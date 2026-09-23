@@ -3,14 +3,25 @@
 The professor's confirmed platform design (Sept 2026) shows all 5
 intervention zones on a single map at once, clickable to open a
 distribution panel - a different shape from the per-region
-choropleth built by src/pilot_export.py. These functions turn an
-already-built region's per-municipality pilot GeoJSON
-(src/pilot_export.build_pilot_feature_collection's output) into one
-dissolved zone-level feature, and build placeholder features for
-zones that are configured but not yet built (e.g. Castilla y León and
-Extremadura, pending the whole-region zonal-stats aggregation step -
-see docs/03). They do not perform any climate processing or boundary
-loading themselves.
+choropleth built by src/pilot_export.py. These functions build the
+zone-level GeoJSON Feature for each of the 5 zones.
+
+**Update (Sept 2026): the map no longer displays the temperature
+index.** The professor is calculating the crop-specific bioclimatic
+indices himself and delivering them directly (see
+docs/04_roadmap_future_and_bioclimatic_indices.md, Phase 7) - so
+`annual_mean_celsius` was never going to be the value shown to users,
+and keeping it on the map risked being mistaken for the real
+(pending) index. Every zone is therefore built as a "built": False
+feature now, with geometry when it is known (either dissolved from an
+already-built region's per-municipality pilot GeoJSON, or loaded from
+a local GISCO file for Castilla y León/Extremadura) and omitted
+otherwise - all 5 zones show the same "pending" treatment on the map
+until the professor's indices are ingested. The underlying temperature
+pipeline (src/pilot_export.py, src/climate_pipeline.py, the future/
+ensemble/anomaly modules) is untouched and still produces
+`{slug}_pilot.geojson` - only this module stopped surfacing it on the
+zones map.
 """
 
 import json
@@ -22,14 +33,16 @@ class ZoneOverviewExportError(ValueError):
     """Raised when zone overview export inputs are inconsistent."""
 
 
-def build_zone_feature_from_pilot(
+def build_zone_outline_from_pilot(
     slug: str,
     label: str,
     pilot_feature_collection: dict,
 ) -> dict:
     """
     Dissolve a built region's per-municipality pilot GeoJSON into one
-    zone-level GeoJSON Feature.
+    zone-level outline, with no climate properties attached (see
+    module docstring: the map shows every zone as pending until the
+    professor's indices are ingested).
 
     Parameters
     ----------
@@ -43,17 +56,15 @@ def build_zone_feature_from_pilot(
     pilot_feature_collection : dict
         The GeoJSON FeatureCollection produced by
         src/pilot_export.build_pilot_feature_collection - one feature
-        per municipality, each with an "annual_mean_celsius" property.
+        per municipality (its "annual_mean_celsius" values are not
+        used, only the geometry).
 
     Returns
     -------
     dict
-        A GeoJSON Feature for the whole zone, with the municipality
-        geometries dissolved into one outline and properties:
-        "slug", "label", "built" (True), "annual_mean_celsius" (the
-        simple mean across municipalities - not area-weighted) and
-        "municipality_values" (the per-municipality annual means, used
-        to draw a distribution chart for the zone).
+        A "built": False GeoJSON Feature for the whole zone (same
+        shape as build_zone_placeholder_feature), with the
+        municipality geometries dissolved into one outline.
     """
 
     features = pilot_feature_collection.get("features") or []
@@ -69,37 +80,15 @@ def build_zone_feature_from_pilot(
 
     dissolved_geometry = municipalities_gdf.geometry.union_all()
 
-    municipality_values = [
-        {
-            "municipio": feature["properties"]["municipio"],
-            "annual_mean_celsius": feature["properties"][
-                "annual_mean_celsius"
-            ],
-        }
-        for feature in features
-    ]
-
-    annual_mean_celsius = sum(
-        value["annual_mean_celsius"] for value in municipality_values
-    ) / len(municipality_values)
-
     geometry = json.loads(
         gpd.GeoSeries(
             [dissolved_geometry], crs="EPSG:4326"
         ).to_json()
     )["features"][0]["geometry"]
 
-    return {
-        "type": "Feature",
-        "properties": {
-            "slug": slug,
-            "label": label,
-            "built": True,
-            "annual_mean_celsius": round(annual_mean_celsius, 3),
-            "municipality_values": municipality_values,
-        },
-        "geometry": geometry,
-    }
+    return build_zone_placeholder_feature(
+        slug=slug, label=label, geometry=geometry
+    )
 
 
 def build_zone_placeholder_feature(

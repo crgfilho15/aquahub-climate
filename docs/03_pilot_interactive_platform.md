@@ -105,9 +105,9 @@ data/processed/pilot/{slug}_pilot_meta.json
         │
         │  scripts/build_zone_overview.py [--gisco-file <path>]
         │  (dissolves each built zone's municipalities into one outline
-        │   + annual mean + per-municipality values — see
-        │   src/zone_overview_export.py; optionally adds Spain zone
-        │   outlines from a local GISCO file, marked "built": false)
+        │   — see src/zone_overview_export.py; optionally adds Spain
+        │   zone outlines from a local GISCO file. Every zone comes out
+        │   "built": false — see Section 6, "Update (Sept 2026)")
         ▼
 data/processed/pilot/zones_overview.geojson
         │
@@ -169,38 +169,38 @@ built yet, the banner says so explicitly with the exact command to run.
 
 ### 6. What the platform shows
 
-- A banner with 4 filters: **Cultura** and **Índice** (populated with the
-  4 confirmed crop names, but disabled - see Section 1), **Período**
-  (histórico + the 3 configured future periods) and **SSP** (disabled on
-  histórico; the 2 configured scenarios otherwise).
+**Update (Sept 2026): the map no longer displays the temperature
+index.** The professor is calculating the crop-specific bioclimatic
+indices himself and delivering them directly (`docs/04` Phase 7) - so
+`annual_mean_celsius` was never going to be the value shown to users.
+Keeping it displayed risked it being mistaken for the real (pending)
+index, so `scripts/build_zone_overview.py`/`src/zone_overview_export.py`
+now mark every zone `"built": false`, whether or not its underlying
+temperature pipeline has actually run. **All 5 zones therefore render
+identically to how Castilla y León/Extremadura rendered before this
+change** - a dashed outline, "pending" tooltip, and a "no data yet"
+panel message on click. The temperature pipeline itself
+(`src/pilot_export.py`, `src/climate_pipeline.py`, the future/ensemble/
+anomaly modules, `src/bioclimatic_indices.py`) is untouched and still
+runs/tests normally - only this map stopped surfacing its output, so
+it stays available as an independent cross-check once the professor's
+indices arrive (see `docs/04`).
+
+- A banner with 4 filters: **Cultura**, **Índice**, **Período** and
+  **SSP** - all disabled, since no zone has index data to filter by yet
+  (see Section 1 and the update above).
 - A single Leaflet map showing every configured zone at once, each drawn
-  as one dissolved outline (not subdivided by municipality) - zones with
-  built climate data are coloured by their 1981–2010 annual mean
-  temperature (`tas`); zones without built data yet (e.g. Castilla y
-  León/Extremadura today) are drawn in a neutral dashed style and
-  tooltip as "dados pendentes".
-- Clicking a zone opens a side panel with:
-  - the zone name and its annual mean temperature for the current
-    Período/SSP selection (histórico uses the value already baked into
-    `zones_overview.geojson`; a future selection fetches that zone's
-    existing `/api/pilot/{slug}/future/...` slice on demand and averages
-    it);
-  - a smooth distribution chart (Gaussian KDE, not a bar histogram - per
-    the professor's sketch) of the annual mean temperature **per
-    municipality within the zone**, with a rug plot of the real
-    observed values. This is explicitly labelled "provisório" in the UI:
-    it is a real, non-fabricated dataset (today's per-municipality
-    temperature means), used as a placeholder for whatever the
-    distribution axis should actually represent once confirmed with the
-    professor - not yet the same thing as a bioclimatic index
-    distribution, since no index data exists yet (see Section 1).
-  - for a zone with no built data, a "dados pendentes" message instead.
+  as one dissolved outline (not subdivided by municipality), all in the
+  same neutral dashed "pending" style and tooltip.
+- Clicking a zone opens a side panel with a "no processed climate data
+  is available for this zone yet" message - identical for all 5 zones.
 
 This intentionally mirrors the "camada científica + camada de
 interação" separation already established in `docs/01` Section 20: the
 underlying ~1 km raster remains the scientific product; this platform's
 dissolved zone outlines are the interaction/summary layer built on top
-of it.
+of it - today that layer just has nothing of the professor's to show
+yet.
 
 ---
 
