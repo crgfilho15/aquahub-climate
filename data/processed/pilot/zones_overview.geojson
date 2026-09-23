@@ -6,86 +6,7 @@
       "properties": {
         "slug": "douro",
         "label": "Douro",
-        "built": true,
-        "annual_mean_celsius": 13.039,
-        "municipality_values": [
-          {
-            "municipio": "Alijó",
-            "annual_mean_celsius": 13.057
-          },
-          {
-            "municipio": "Armamar",
-            "annual_mean_celsius": 12.862
-          },
-          {
-            "municipio": "Carrazeda de Ansiães",
-            "annual_mean_celsius": 13.234
-          },
-          {
-            "municipio": "Freixo de Espada à Cinta",
-            "annual_mean_celsius": 13.931
-          },
-          {
-            "municipio": "Lamego",
-            "annual_mean_celsius": 12.54
-          },
-          {
-            "municipio": "Mesão Frio",
-            "annual_mean_celsius": 13.886
-          },
-          {
-            "municipio": "Moimenta da Beira",
-            "annual_mean_celsius": 11.985
-          },
-          {
-            "municipio": "Murça",
-            "annual_mean_celsius": 13.008
-          },
-          {
-            "municipio": "Penedono",
-            "annual_mean_celsius": 11.93
-          },
-          {
-            "municipio": "Peso da Régua",
-            "annual_mean_celsius": 13.589
-          },
-          {
-            "municipio": "Sabrosa",
-            "annual_mean_celsius": 13.056
-          },
-          {
-            "municipio": "Santa Marta de Penaguião",
-            "annual_mean_celsius": 13.464
-          },
-          {
-            "municipio": "Sernancelhe",
-            "annual_mean_celsius": 12.317
-          },
-          {
-            "municipio": "São João da Pesqueira",
-            "annual_mean_celsius": 13.622
-          },
-          {
-            "municipio": "Tabuaço",
-            "annual_mean_celsius": 13.023
-          },
-          {
-            "municipio": "Tarouca",
-            "annual_mean_celsius": 11.899
-          },
-          {
-            "municipio": "Torre de Moncorvo",
-            "annual_mean_celsius": 14.02
-          },
-          {
-            "municipio": "Vila Nova de Foz Côa",
-            "annual_mean_celsius": 14.29
-          },
-          {
-            "municipio": "Vila Real",
-            "annual_mean_celsius": 12.03
-          }
-        ]
+        "built": false
       },
       "geometry": {
         "type": "Polygon",
@@ -57410,102 +57331,7 @@
       "properties": {
         "slug": "beira-interior",
         "label": "Beira Interior",
-        "built": true,
-        "annual_mean_celsius": 13.778,
-        "municipality_values": [
-          {
-            "municipio": "Almeida",
-            "annual_mean_celsius": 12.923
-          },
-          {
-            "municipio": "Belmonte",
-            "annual_mean_celsius": 14.386
-          },
-          {
-            "municipio": "Castelo Branco",
-            "annual_mean_celsius": 15.598
-          },
-          {
-            "municipio": "Celorico da Beira",
-            "annual_mean_celsius": 13.509
-          },
-          {
-            "municipio": "Covilhã",
-            "annual_mean_celsius": 13.104
-          },
-          {
-            "municipio": "Figueira de Castelo Rodrigo",
-            "annual_mean_celsius": 13.675
-          },
-          {
-            "municipio": "Fornos de Algodres",
-            "annual_mean_celsius": 13.643
-          },
-          {
-            "municipio": "Fundão",
-            "annual_mean_celsius": 14.472
-          },
-          {
-            "municipio": "Gouveia",
-            "annual_mean_celsius": 12.616
-          },
-          {
-            "municipio": "Guarda",
-            "annual_mean_celsius": 12.461
-          },
-          {
-            "municipio": "Idanha-a-Nova",
-            "annual_mean_celsius": 16.022
-          },
-          {
-            "municipio": "Manteigas",
-            "annual_mean_celsius": 10.489
-          },
-          {
-            "municipio": "Mêda",
-            "annual_mean_celsius": 13.284
-          },
-          {
-            "municipio": "Oleiros",
-            "annual_mean_celsius": 13.61
-          },
-          {
-            "municipio": "Penamacor",
-            "annual_mean_celsius": 14.607
-          },
-          {
-            "municipio": "Pinhel",
-            "annual_mean_celsius": 13.405
-          },
-          {
-            "municipio": "Proença-a-Nova",
-            "annual_mean_celsius": 15.183
-          },
-          {
-            "municipio": "Sabugal",
-            "annual_mean_celsius": 12.823
-          },
-          {
-            "municipio": "Seia",
-            "annual_mean_celsius": 12.366
-          },
-          {
-            "municipio": "Sertã",
-            "annual_mean_celsius": 14.505
-          },
-          {
-            "municipio": "Trancoso",
-            "annual_mean_celsius": 12.769
-          },
-          {
-            "municipio": "Vila Velha de Ródão",
-            "annual_mean_celsius": 16.222
-          },
-          {
-            "municipio": "Vila de Rei",
-            "annual_mean_celsius": 15.227
-          }
-        ]
+        "built": false
       },
       "geometry": {
         "type": "MultiPolygon",
@@ -154506,46 +154332,7 @@
       "properties": {
         "slug": "tras-os-montes",
         "label": "Terras de Trás-os-Montes",
-        "built": true,
-        "annual_mean_celsius": 13.187,
-        "municipality_values": [
-          {
-            "municipio": "Alfândega da Fé",
-            "annual_mean_celsius": 13.721
-          },
-          {
-            "municipio": "Bragança",
-            "annual_mean_celsius": 12.178
-          },
-          {
-            "municipio": "Macedo de Cavaleiros",
-            "annual_mean_celsius": 13.095
-          },
-          {
-            "municipio": "Miranda do Douro",
-            "annual_mean_celsius": 12.843
-          },
-          {
-            "municipio": "Mirandela",
-            "annual_mean_celsius": 14.255
-          },
-          {
-            "municipio": "Mogadouro",
-            "annual_mean_celsius": 13.292
-          },
-          {
-            "municipio": "Vila Flor",
-            "annual_mean_celsius": 13.825
-          },
-          {
-            "municipio": "Vimioso",
-            "annual_mean_celsius": 13.243
-          },
-          {
-            "municipio": "Vinhais",
-            "annual_mean_celsius": 12.235
-          }
-        ]
+        "built": false
       },
       "geometry": {
         "type": "Polygon",
