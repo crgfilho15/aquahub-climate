@@ -53,8 +53,8 @@ In priority order (blocks the most downstream work first):
 
 | # | Decision | Why it blocks engineering | Status |
 |---|---|---|---|
-| 1 | **Daily vs. monthly future data.** Is the intended future dataset CHELSA-ISIMIP3b (daily, used by MONTEVITIS) or the CHELSA v2.1 future climatologies (monthly)? | Frost days, GDD, chilling hours and most bioclimatic indices need daily data. Building the acquisition layer against the wrong product means rebuilding it. | **Proposal drafted (Sept 2026): monthly.** Recorded in `config/climate.toml` `[future]` (`temporal_resolution = "monthly"`, `dataset = "CHELSA-climatologies-v2.1-CMIP6"`), explicitly marked as pending professor confirmation. Rationale and the frost/chilling trade-off this implies are in Section 3 below. See `docs/02` §4. |
-| 2 | **GCM set.** The 5 GCMs standardised by CHELSA v2.1, or the 9 used by MONTEVITIS (CHELSA-ISIMIP3b)? | Directly tied to decision 1 — these may be different underlying products, not just a longer list. Determines storage/compute scope (~2x). | **Proposal drafted (Sept 2026): the 5 CHELSA v2.1 GCMs** (GFDL-ESM4, IPSL-CM6A-LR, MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL), consistent with decision 1. Recorded in `config/climate.toml` `[models].gcms`, pending confirmation. See `docs/02` §7. |
+| 1 | **Daily vs. monthly future data.** Is the intended future dataset CHELSA-ISIMIP3b (daily, used by MONTEVITIS) or the CHELSA v2.1 future climatologies (monthly)? | Frost days, GDD, chilling hours and most bioclimatic indices need daily data. Building the acquisition layer against the wrong product means rebuilding it. | **Proposal drafted (Sept 2026): monthly.** Recorded in `config/climate.toml` `[future]` (`temporal_resolution = "monthly"`, `dataset = "CHELSA-climatologies-v2.1-CMIP6"`), explicitly marked as pending professor confirmation. Rationale and the frost/chilling trade-off this implies are in Section 3 below. See `docs/02` §4. **Update (Sept 2026): the professor's first real delivery (`data/raw/ensemble1/`) is NEX-GDDP-CMIP6 via `NEX_1km_outputs`, not CHELSA v2.1** — a different dataset than this proposal. Treated as a working hypothesis, not a confirmed change, until the professor confirms in writing. See Section 2.1 below. |
+| 2 | **GCM set.** The 5 GCMs standardised by CHELSA v2.1, or the 9 used by MONTEVITIS (CHELSA-ISIMIP3b)? | Directly tied to decision 1 — these may be different underlying products, not just a longer list. Determines storage/compute scope (~2x). | **Proposal drafted (Sept 2026): the 5 CHELSA v2.1 GCMs** (GFDL-ESM4, IPSL-CM6A-LR, MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL), consistent with decision 1. Recorded in `config/climate.toml` `[models].gcms`, pending confirmation. See `docs/02` §7. **Update (Sept 2026): `ensemble1`'s global attrs list only 4 GCMs** (missing MRI-ESM2-0) **and only one future period** (2041-2070, not all 3) — see Section 2.1 for whether this is a deliberate scope or a partial delivery. |
 | 3 | **Confirm SSPs and periods** (SSP1-2.6/3-7.0/5-8.5; 2011–2040/2041–2070/2071–2100) | Already provisional in `climate.toml`; low risk, but should be explicitly signed off before large downloads | Unchanged from the original proposal — still pending sign-off. See `docs/02` §5–6. |
 | 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase 7/8 below; requires literature review + agronomist validation, not just a research team's yes/no | **Update (Sept 2026, professor meeting): the professor will calculate the crop-specific indices himself and deliver them to the user** — not something this codebase computes from scratch. Changes Phase 7's shape: from "implement each index's formula" to "ingest and display the professor's delivered values" (format/schema TBD once the user shares what he delivers). Phase 6's generic Tier-1 indices (GDD/Winkler Index, already built) stay useful as an independent cross-check, not a substitute. |
 | 5 | **Scope confirmation:** does the researcher's responsibility include the socioeconomic diagnosis, and which territory (Douro only vs. all four regions) for this stage | Lower engineering impact, but affects prioritisation | Partially resolved in conversation: Douro is the pilot, architecture built to extend afterwards (see Phase 10). Socioeconomic-diagnosis scope: still open. |
@@ -93,6 +93,100 @@ The mockup, once shared, should clarify how the professor wants the
 platform laid out — treat it as the concrete spec for Phase 9's
 remaining work (variable/index selectors, layers, panel layout),
 overriding this doc's own guesses where they conflict.
+
+---
+
+### 2.1. First real delivery from the professor: `data/raw/ensemble1/` (Sept 2026)
+
+**Update (Sept 2026):** the professor sent a first real dataset —
+inspected read-only with `xarray` (no parser/ingestion code written
+yet; this is exploration, tracked as a separate step before Phase 7's
+"ingest" work starts). It lives at `data/raw/ensemble1/` (moved there
+for consistency with `data/raw/`'s existing untracked-raw-data
+convention — same `.gitignore` rule already covers it, no config
+change needed) and its 129-variable reference table (name, min/max per
+file) is at `data/raw/ensemble1/variables_reference.csv`.
+
+**What it is:**
+
+- 3 NetCDF files, structurally identical to each other (same 129
+  variables, same order, same dims/coords/encoding — only the values
+  and the `scenario`/`period`/`clip_source` attributes differ):
+  - `historical/ensemble_historical_1981-2010.nc` — `scenario=historical`, `period=1981-2010`
+  - `ssp126/ensemble_ssp126_2041-2070.nc` — `scenario=ssp126`, `period=2041-2070`
+  - `ssp585/ensemble_ssp585_2041-2070.nc` — `scenario=ssp585`, `period=2041-2070`
+- **129 data variables** (short codes — `GDD10`, `HUGLIN`, `BRANAS`,
+  `DI`, `CI`, `SELIANINOV`, `LTI`, `BIO1`–`BIO19`, `ET0_ANNUAL`,
+  `WB_ANNUAL`, `CHILL_HOURS`, `TXx`, `FD`, etc. — clearly bioclimatic/
+  agroclimatic indices) with **no in-file units/long_name/standard_name**
+  (`attrs = {}` on every variable). The meaning/unit of each code is
+  not self-describing and needs the professor's own legend before any
+  ingestion work starts.
+- **A raster grid, not per-zone/municipality values**: dims
+  `(time=1, lat=638, lon=784)`, ~0.00833° (~1 km) resolution, bbox
+  lon -8.296 to -1.771 / lat 37.929 to 43.237 — clipped to **the union
+  of all 5 AquaHub zones** (global attr `clip_shapefile:
+  ...\aquahub_zones.shp`, `clip_note: "clipped to the union of all
+  polygons in aquahub_zones.shp, not to individual polygons"`). That
+  shapefile is the same one `scripts/export_zones_shapefile.py`
+  (`docs/03` Section 7) generates from `zones_overview.geojson` — so
+  the "export zones → professor clips his own results → sends back"
+  loop described there is confirmed working in practice, one round
+  trip in.
+
+**Contradicts the Section 3 proposal — flagged, not assumed:**
+
+- Global attrs give `clip_source:
+  E:\NEX_1km_outputs\ensemble\<scenario>\...` — this is **NEX-GDDP-CMIP6
+  data via `NEX_1km_outputs`, not CHELSA v2.1** as Section 3 proposed
+  and `config/climate.toml`'s `[future]` currently records. Same
+  pattern the project already applies elsewhere (`docs/03` Section 7,
+  `docs/04` Section 2): **treat this as the professor's working
+  hypothesis for what dataset is actually being used, not a confirmed
+  fact**, until he confirms it in writing. Don't change
+  `config/climate.toml`'s `dataset` value or any code on the strength
+  of this file's attributes alone.
+- `models` global attr lists only **4 GCMs** — GFDL-ESM4, IPSL-CM6A-LR,
+  MPI-ESM1-2-HR, UKESM1-0-LL — **missing MRI-ESM2-0** from the 5-GCM
+  proposal in decision 2/Section 3. (That 5-GCM list was this
+  project's own proposal to the professor, not something he'd
+  previously confirmed — so this isn't necessarily him overriding a
+  decision, it may simply be the set he actually has ensembled.)
+- Only **one future period** is present (`2041-2070`), not the 3 in
+  `config/climate.toml`'s `[future].periods` (2011–2040 / 2041–2070 /
+  2071–2100).
+- **Open question for the professor, not yet answered:** is `ensemble1`
+  a deliberate, final scope (4 models, 1 period, as a first cut) or a
+  partial/in-progress delivery with more to come? Don't build ingestion
+  logic that assumes either answer until he says which.
+
+**Data-quality finding to report back:** `SELIANINOV`'s historical-file
+maximum is `34,349,936` — several orders of magnitude above its
+ssp126/ssp585 maxima (`~202` / `~71`) and above every other variable in
+the file. Looks like a numerical artifact (likely division by a
+near-zero denominator somewhere in the professor's own calculation),
+not a mistake in how this project read the file. Worth flagging to the
+professor rather than silently normalising or clipping it.
+
+**Open questions to take back to the professor** (compiled while
+inspecting this delivery):
+
+| # | Question |
+|---|---|
+| 1 | Is the dataset really NEX-GDDP-CMIP6 (`NEX_1km_outputs`), not CHELSA v2.1 as this project's own proposal assumed — and if so, is that a deliberate choice? |
+| 2 | Is the 4-GCM ensemble (missing MRI-ESM2-0) intentional, or is a 5th model still to come? |
+| 3 | Is `ensemble1`'s single future period (2041-2070) a deliberate first cut, or should 2011-2040 and 2071-2100 be expected later? |
+| 4 | What do the 129 variable codes mean — is there a legend/data dictionary (units, formula, literature source) to go with them? |
+| 5 | What does the `SELIANINOV` outlier in the historical file (34,349,936 vs. ~70-200 in the future files) indicate — a bug on his side, or a real edge case in the formula? |
+| 6 | What format will future deliveries take — more NetCDF ensembles like this one, per-crop threshold tables, or something else — so the ingestion step (Phase 7) can be designed for the real shape instead of guessed? |
+| 7 | Should this raster-grid ensemble be aggregated to the same per-zone/per-municipality shape the rest of the platform uses (`docs/03` Section 6), or does the professor intend to deliver zone-level summaries himself? |
+
+**Deliberately not done yet:** no parser or ingestion code for
+`ensemble1` — this section only records what was found by read-only
+inspection. Phase 7's actual "ingest what the professor delivers" work
+starts once the above questions are answered (particularly #4 and #6),
+so the ingestion shape isn't built against a guess that turns out
+wrong.
 
 ---
 
