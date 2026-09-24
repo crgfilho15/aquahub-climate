@@ -9,19 +9,15 @@ period = "1981-2010"
 spatial_resolution = "30 arcsec (~1 km)"
 
 [future]
-# PROPOSAL pending confirmation with the research team (see
-# docs/02_methodological_questions_for_team.md and docs/04, Track A).
-# This is the "monthly, 5-GCM" option: the official CHELSA v2.1 future
-# climatologies product, at the same ~1km resolution and downscaling
-# methodology as the historical baseline above. It is monthly, not
-# daily - see docs/04 for why that trade-off was chosen and what it
-# means for frost/chilling indices later.
-dataset = "CHELSA-climatologies-v2.1-CMIP6"
-model_set = "CHELSA-v2.1-standard-5"
-temporal_resolution = "monthly"
-# 2011-2040 was deliberately dropped (Sept 2026, user decision, see
-# docs/04 Section 2.1/3) - not part of the project's future-period
-# scope at all, not just undelivered by the professor yet.
+# The allow-list the Climate Atlas's index API validates Period/SSP
+# selections against (api/main.py's _scenario_period_or_404). Not tied
+# to any particular dataset any more - the earlier proposal to
+# download+ensemble CHELSA v2.1 future climatologies ourselves
+# (dataset/model_set/GCM list) was retired (Sept 2026) once the
+# professor started delivering pre-computed indices directly
+# (ensemble1, see docs/04 Section 2.1). 2011-2040 was deliberately
+# dropped (Sept 2026, user decision, see docs/04 Section 2.1/3) - not
+# part of the project's scope at all, not just undelivered yet.
 periods = [
     "2041-2070",
     "2071-2100"
@@ -34,59 +30,6 @@ scenarios = [
     "ssp126",
     "ssp585"
 ]
-
-[models]
-# PROPOSAL pending confirmation with the research team - the 5 GCMs
-# standardised by CHELSA v2.1 (matches [future].model_set above).
-# Not yet approved by the professor.
-gcms = [
-    "GFDL-ESM4",
-    "IPSL-CM6A-LR",
-    "MPI-ESM1-2-HR",
-    "MRI-ESM2-0",
-    "UKESM1-0-LL"
-]
-
-[variables]
-core = [
-    "tas",
-    "tasmin",
-    "tasmax",
-    "pr"
-]
-
-optional = [
-    "rsds",
-    "pet",
-    "cmi"
-]
-
-[ensemble]
-method = "equal_weight_mean"
-uncertainty_metrics = [
-    "min",
-    "max",
-    "std"
-]
-
-[processing]
-preserve_rasters = true
-calculate_municipal_statistics = true
-calculate_anomalies = true
-preserve_individual_gcm_results = true
-
-[pilot]
-# Configuration for the future-climate experiment scaffold
-# (src/future_climate_experiment.py). Not used by the interactive
-# platform below.
-region_type = "NUTS3"
-region_name = "Douro"
-variable = "tas"
-scenario = "ssp585"
-period = "2041-2070"
-
-# Deliberately empty until availability and methodology are confirmed
-gcm = ""
 
 [pilot_platform]
 # Configuration for the interactive pilot platform

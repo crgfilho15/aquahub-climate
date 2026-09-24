@@ -38,11 +38,6 @@ def _validate_climate_config(config: dict) -> None:
         "project",
         "historical",
         "future",
-        "models",
-        "variables",
-        "ensemble",
-        "processing",
-        "pilot",
     }
 
     missing_sections = required_sections - config.keys()
@@ -54,30 +49,8 @@ def _validate_climate_config(config: dict) -> None:
         )
 
     future = config["future"]
-    variables = config["variables"]
-    models = config["models"]
-    pilot = config["pilot"]
-
-    dataset = future.get("dataset", "").strip()
-    model_set = future.get("model_set", "").strip()
     periods = future.get("periods", [])
     scenarios = future.get("scenarios", [])
-    gcms = models.get("gcms", [])
-
-    all_variables = (
-        variables.get("core", [])
-        + variables.get("optional", [])
-    )
-
-    if not dataset:
-        raise ClimateConfigError(
-            "Future climate dataset must be configured."
-        )
-
-    if not model_set:
-        raise ClimateConfigError(
-            "Future climate model set must be configured."
-        )
 
     if not periods:
         raise ClimateConfigError(
@@ -87,34 +60,4 @@ def _validate_climate_config(config: dict) -> None:
     if not scenarios:
         raise ClimateConfigError(
             "At least one future scenario must be configured."
-        )
-
-    if not variables.get("core"):
-        raise ClimateConfigError(
-            "At least one core climate variable must be configured."
-        )
-
-    if pilot.get("variable") not in all_variables:
-        raise ClimateConfigError(
-            f"Pilot variable '{pilot.get('variable')}' "
-            "is not configured."
-        )
-
-    if pilot.get("scenario") not in scenarios:
-        raise ClimateConfigError(
-            f"Pilot scenario '{pilot.get('scenario')}' "
-            "is not configured."
-        )
-
-    if pilot.get("period") not in periods:
-        raise ClimateConfigError(
-            f"Pilot period '{pilot.get('period')}' "
-            "is not configured."
-        )
-
-    pilot_gcm = pilot.get("gcm", "")
-
-    if pilot_gcm and pilot_gcm not in gcms:
-        raise ClimateConfigError(
-            f"Pilot GCM '{pilot_gcm}' is not configured."
         )
