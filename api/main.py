@@ -1,8 +1,11 @@
-"""FastAPI backend for the AquaHub interactive pilot platform.
+"""FastAPI backend for the AquaHub Climate Atlas.
 
-Serves the pre-generated pilot GeoJSON/metadata (produced locally by
-scripts/build_pilot_region.py, where CHELSA and CAOP data are
-available) and the static frontend in web/.
+Serves the pre-generated zone overview (produced locally by
+scripts/build_pilot_region.py + scripts/build_zone_overview.py) and
+the professor's ingested bioclimatic-index rasters/catalog
+(scripts/build_indices_catalog.py + scripts/build_index_pilot_data.py)
+- everything read straight off disk, no database, plus the static
+frontend in web/.
 
 Regions are driven by config/climate.toml's
 [[pilot_platform.regions]] list - never trust the 'region' path
@@ -12,6 +15,9 @@ ever used to build a file path.
 
 import json
 import os
+import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -25,13 +31,6 @@ from src.climate_config import load_climate_config
 
 APP_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = APP_ROOT / "web"
-
-BUILD_HINT_TEMPLATE = (
-    "Pilot data for '{region}' not found. Run "
-    "'python -m scripts.build_pilot_region --region {region}' locally "
-    "(where data/raw/chelsa and data/raw/boundaries are "
-    "available), then restart this API."
-)
 
 app = FastAPI(title="AquaHub Climate Pilot API")
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -78,33 +77,6 @@ def _region_slug_or_404(region: str) -> str:
     return region
 
 
-def _read_pilot_json(region: str, suffix: str) -> dict:
-    path = get_pilot_data_dir() / f"{region}_{suffix}"
-
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=BUILD_HINT_TEMPLATE.format(region=region),
-        )
-
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-@app.get("/api/pilot")
-def list_available_pilot_regions() -> JSONResponse:
-    """Regions that are both configured and have built pilot data."""
-
-    data_dir = get_pilot_data_dir()
-
-    available = [
-        {"slug": region["slug"], "label": region["label"]}
-        for region in get_configured_regions()
-        if (data_dir / f"{region['slug']}_pilot.geojson").exists()
-    ]
-
-    return JSONResponse(available)
-
-
 ZONES_BUILD_HINT = (
     "Zone overview not found. Run "
     "'python -m scripts.build_zone_overview' locally, then restart "
@@ -127,192 +99,6 @@ def get_zone_overview() -> JSONResponse:
         raise HTTPException(status_code=404, detail=ZONES_BUILD_HINT)
 
     return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
-
-
-@app.get("/api/pilot/{region}")
-def get_pilot_geojson(region: str) -> JSONResponse:
-    region = _region_slug_or_404(region)
-
-    return JSONResponse(
-        _read_pilot_json(region, "pilot.geojson")
-    )
-
-
-@app.get("/api/pilot/{region}/meta")
-def get_pilot_metadata(region: str) -> JSONResponse:
-    region = _region_slug_or_404(region)
-
-    return JSONResponse(
-        _read_pilot_json(region, "pilot_meta.json")
-    )
-
-
-def get_future_pilot_data_dir() -> Path:
-    """
-    Directory containing generated future/ensemble/anomaly pilot
-    artefacts (src/future_pilot_export.py's output). Overridable via
-    AQUAHUB_FUTURE_PILOT_DATA_DIR, primarily for tests.
-    """
-
-    override = os.environ.get("AQUAHUB_FUTURE_PILOT_DATA_DIR")
-
-    if override:
-        return Path(override)
-
-    return get_pilot_data_dir() / "future"
-
-
-def _future_slice_or_404(
-    variable: str,
-    scenario: str,
-    period: str,
-) -> tuple[str, str, str]:
-    """
-    Validate variable/scenario/period against config/climate.toml
-    before ever using them to build a file path - same allow-list
-    principle _region_slug_or_404 applies to the region slug.
-    """
-
-    config = load_climate_config()
-
-    configured_variables = set(
-        config["variables"].get("core", [])
-        + config["variables"].get("optional", [])
-    )
-    configured_scenarios = set(config["future"]["scenarios"])
-    configured_periods = set(config["future"]["periods"])
-
-    if variable not in configured_variables:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Unknown variable: '{variable}'. "
-                f"Configured variables: {sorted(configured_variables)}"
-            ),
-        )
-
-    if scenario not in configured_scenarios:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Unknown scenario: '{scenario}'. "
-                f"Configured scenarios: {sorted(configured_scenarios)}"
-            ),
-        )
-
-    if period not in configured_periods:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Unknown period: '{period}'. "
-                f"Configured periods: {sorted(configured_periods)}"
-            ),
-        )
-
-    return variable, scenario, period
-
-
-FUTURE_BUILD_HINT_TEMPLATE = (
-    "Future pilot data for '{region}' ({variable}/{scenario}/{period}) "
-    "not found. Run 'python -m scripts.build_future_pilot_data --region "
-    "{region} --variable {variable} --scenario {scenario} --period "
-    "{period}' locally, then restart this API."
-)
-
-
-def _read_future_pilot_json(
-    region: str,
-    variable: str,
-    scenario: str,
-    period: str,
-    suffix: str,
-) -> dict:
-    stem = f"{region}_{variable}_{scenario}_{period}_future"
-    path = get_future_pilot_data_dir() / f"{stem}{suffix}"
-
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=FUTURE_BUILD_HINT_TEMPLATE.format(
-                region=region,
-                variable=variable,
-                scenario=scenario,
-                period=period,
-            ),
-        )
-
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-@app.get("/api/pilot/{region}/future")
-def list_available_future_slices(region: str) -> JSONResponse:
-    """
-    (variable, scenario, period) combinations that are both
-    configured and have built future pilot data for this region.
-    """
-
-    region = _region_slug_or_404(region)
-
-    config = load_climate_config()
-    data_dir = get_future_pilot_data_dir()
-
-    variables = (
-        config["variables"].get("core", [])
-        + config["variables"].get("optional", [])
-    )
-    scenarios = config["future"]["scenarios"]
-    periods = config["future"]["periods"]
-
-    available = [
-        {"variable": variable, "scenario": scenario, "period": period}
-        for variable in variables
-        for scenario in scenarios
-        for period in periods
-        if (
-            data_dir
-            / f"{region}_{variable}_{scenario}_{period}_future.geojson"
-        ).exists()
-    ]
-
-    return JSONResponse(available)
-
-
-@app.get("/api/pilot/{region}/future/{variable}/{scenario}/{period}")
-def get_future_pilot_geojson(
-    region: str,
-    variable: str,
-    scenario: str,
-    period: str,
-) -> JSONResponse:
-    region = _region_slug_or_404(region)
-    variable, scenario, period = _future_slice_or_404(
-        variable, scenario, period
-    )
-
-    return JSONResponse(
-        _read_future_pilot_json(
-            region, variable, scenario, period, ".geojson"
-        )
-    )
-
-
-@app.get("/api/pilot/{region}/future/{variable}/{scenario}/{period}/meta")
-def get_future_pilot_metadata(
-    region: str,
-    variable: str,
-    scenario: str,
-    period: str,
-) -> JSONResponse:
-    region = _region_slug_or_404(region)
-    variable, scenario, period = _future_slice_or_404(
-        variable, scenario, period
-    )
-
-    return JSONResponse(
-        _read_future_pilot_json(
-            region, variable, scenario, period, "_meta.json"
-        )
-    )
 
 
 def get_indices_catalog_path() -> Path:
@@ -423,6 +209,67 @@ INDEX_BUILD_HINT_TEMPLATE = (
     "this API."
 )
 
+# Public (read-only, no auth needed) base URL for the index rasters in
+# Vercel Blob storage. The deployed function no longer bundles these
+# ~136MB+ .tif files locally (that's what blew past Vercel's 500MB/
+# 225MB function-size limits, Sept 2026) - they're uploaded there once
+# (see scripts/build_index_pilot_data.py's own local output, pushed to
+# Blob out of band) and fetched on demand instead. Overridable via
+# AQUAHUB_INDEX_BLOB_BASE_URL for tests or a future store rotation.
+INDEX_BLOB_BASE_URL = os.environ.get(
+    "AQUAHUB_INDEX_BLOB_BASE_URL",
+    "https://7qpbuykrpwwiycz7.public.blob.vercel-storage.com/indices",
+)
+
+
+def _get_index_blob_cache_dir() -> Path:
+    """
+    Local cache for rasters fetched from Blob storage. Vercel's
+    deployed function only has tempfile.gettempdir() (/tmp) writable;
+    that directory persists across requests on the same warm
+    container, so a given raster is downloaded at most once per
+    container, not once per request.
+    """
+
+    cache_dir = Path(tempfile.gettempdir()) / "aquahub_index_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def _resolve_raster_path(filename: str) -> Path | None:
+    """
+    Find `filename` (e.g. "douro_historical.tif") locally first -
+    the normal case for local dev, where
+    scripts/build_index_pilot_data.py already wrote it to
+    get_index_pilot_data_dir(). If it isn't there, fetch it from Blob
+    storage once and cache it locally for subsequent requests.
+
+    Returns None if the file exists in neither place, so callers can
+    fall back to the same "not built yet" 404 behaviour as before.
+    """
+
+    local_path = get_index_pilot_data_dir() / filename
+
+    if local_path.exists():
+        return local_path
+
+    cache_path = _get_index_blob_cache_dir() / filename
+
+    if cache_path.exists():
+        return cache_path
+
+    url = f"{INDEX_BLOB_BASE_URL}/{filename}"
+    partial_path = cache_path.with_name(cache_path.name + ".part")
+
+    try:
+        urllib.request.urlretrieve(url, partial_path)
+    except (urllib.error.URLError, OSError):
+        partial_path.unlink(missing_ok=True)
+        return None
+
+    partial_path.rename(cache_path)
+    return cache_path
+
 
 def _read_zone_index_grid(slug: str, code: str, epoch: str) -> dict | None:
     """
@@ -434,10 +281,14 @@ def _read_zone_index_grid(slug: str, code: str, epoch: str) -> dict | None:
     """
 
     data_dir = get_index_pilot_data_dir()
-    raster_path = data_dir / f"{slug}_{epoch}.tif"
     stats_path = data_dir / f"{slug}_{epoch}_stats.json"
 
-    if not raster_path.exists() or not stats_path.exists():
+    if not stats_path.exists():
+        return None
+
+    raster_path = _resolve_raster_path(f"{slug}_{epoch}.tif")
+
+    if raster_path is None:
         return None
 
     stats = json.loads(stats_path.read_text(encoding="utf-8"))
@@ -538,9 +389,9 @@ def _get_index_point(
     region = _region_slug_or_404(region)
     code = _index_code_or_404(code)
 
-    raster_path = get_index_pilot_data_dir() / f"{region}_{epoch}.tif"
+    raster_path = _resolve_raster_path(f"{region}_{epoch}.tif")
 
-    if not raster_path.exists():
+    if raster_path is None:
         raise HTTPException(
             status_code=404,
             detail=INDEX_BUILD_HINT_TEMPLATE.format(code=code, epoch=epoch),

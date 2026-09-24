@@ -38,7 +38,13 @@ confirms it in writing, even if it's already wired into code or config.
 - `data/processed/pilot/` — the small GeoJSON/JSON the interactive
   platform's API serves directly from disk. **The one exception that
   IS committed to Git** (stateless hosts like Vercel can't run the
-  pipeline at deploy time — see `docs/03` Section 10).
+  pipeline at deploy time — see `docs/03` Section 10). **Except**
+  `data/processed/pilot/indices/*.tif` (the bioclimatic-index rasters,
+  ~136MB) — **not in Git**, too big to bundle into the deployed Vercel
+  function alongside its Python deps (see `requirements.txt`'s
+  comments); they live in Vercel Blob storage instead, fetched and
+  cached on demand by `api/main.py` (`INDEX_BLOB_BASE_URL`). The tiny
+  `*_stats.json` sidecars next to them stay committed as before.
 - Everything else under `data/processed/` — derived output, **not in
   Git**, regenerable from `data/raw/` via the pipeline scripts.
 
