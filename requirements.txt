@@ -1,19 +1,32 @@
 # Runtime dependencies for the deployed API (Vercel installs this
 # file - and ONLY this file, it always uses the repo root's
 # requirements.txt, not any nested one). api/main.py only ever imports
-# fastapi, rasterio and numpy - it reads pre-generated GeoJSON/JSON/
+# fastapi, tifffile and numpy - it reads pre-generated GeoJSON/JSON/
 # GeoTIFF files straight off disk, it never runs the data-preparation
 # pipeline.
 #
-# The full geopandas/rioxarray/xarray/dask/pyproj/exactextract stack
-# needed by scripts/*.py (and by the full pytest suite) lives in
+# Deliberately tifffile, not rasterio, for reading the index rasters
+# (see api/main.py's _read_index_raster docstring): rasterio's bundled
+# GDAL needs a system libexpat.so.1 that isn't present on Vercel's
+# Python runtime - confirmed against the real
+# public.ecr.aws/lambda/python:3.12 image (Sept 2026), where importing
+# rasterio crashes the entire app at module-import time
+# (ImportError: libexpat.so.1: cannot open shared object file).
+# tifffile has no native/system dependency beyond numpy. The
+# GeoTIFF-writing side (src/index_pilot_export.py) still uses
+# rasterio/rioxarray - that runs locally only, see
+# requirements-pipeline.txt.
+#
+# The full geopandas/rioxarray/xarray/dask/pyproj/exactextract/rasterio
+# stack needed by scripts/*.py (and by the full pytest suite) lives in
 # requirements-pipeline.txt instead, installed locally only - bundling
 # it into the Vercel function is what pushed the deployed function
 # past the 500MB size limit once data/processed/pilot/indices/*.tif
-# (~136MB) was added (Sept 2026).
+# (~136MB) was added (Sept 2026) - since fixed by moving those rasters
+# to Vercel Blob storage instead (see docs/03 Section 10).
 #
 # Local dev setup: pip install -r requirements.txt -r requirements-pipeline.txt
 
 fastapi==0.141.1
-rasterio==1.5.1
+tifffile==2026.9.20
 numpy==2.5.3
