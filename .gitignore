@@ -53,10 +53,22 @@ data/raw/
 # It must be committed, otherwise a stateless deploy (e.g. Vercel) has
 # no data to serve and every endpoint 404s with a "run the build
 # script locally" hint - see docs/03, Section 10.
+#
+# EXCEPT the exception: data/processed/pilot/indices/*.tif (the
+# bioclimatic-index rasters) are NOT committed either (Sept 2026) -
+# they got too big (~136MB) to bundle into the deployed Vercel
+# function alongside its Python deps without hitting the platform's
+# 225MB Lambda size limit. They live in Vercel Blob storage instead
+# (api/main.py fetches + caches them on demand - see
+# INDEX_BLOB_BASE_URL) and are only regenerated/re-uploaded locally
+# when scripts/build_index_pilot_data.py's output changes. The small
+# *_stats.json sidecars and indices_catalog.json stay committed as
+# before - only the big rasters moved out.
 # ============================================================
 
 data/processed/*
 !data/processed/pilot/
+data/processed/pilot/indices/*.tif
 
 # ============================================================
 # AquaHub - Generated outputs

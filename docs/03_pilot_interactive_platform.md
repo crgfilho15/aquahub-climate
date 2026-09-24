@@ -112,9 +112,8 @@ data/processed/pilot/{slug}_pilot_meta.json
 data/processed/pilot/zones_overview.geojson
         │
         │  api/main.py (FastAPI; GET /api/pilot/zones serves the
-        │  overview; GET /api/pilot/{slug}/future/... still serves
-        │  per-zone future slices on demand when a built zone is
-        │  clicked with a future Período/SSP selected — static file
+        │  overview; GET /api/pilot/zones/index/... and .../point serve
+        │  the professor's ingested bioclimatic indices — static file
         │  reads, no processing)
         ▼
 web/atlas.html + web/app.js
@@ -179,11 +178,22 @@ now mark every zone `"built": false`, whether or not its underlying
 temperature pipeline has actually run. `/api/pilot/zones` (and this
 `"built": false` marking) is now used only as the source of zone
 **geometry** - boundaries, labels, map fit - not of what gets displayed
-on top of them. The temperature pipeline itself
-(`src/pilot_export.py`, `src/climate_pipeline.py`, the future/ensemble/
-anomaly modules, `src/bioclimatic_indices.py`) is untouched and still
-runs/tests normally - it just isn't what the map shows; it stays
-available as an independent cross-check.
+on top of them. `src/pilot_export.py`/`src/climate_pipeline.py` (the
+historical `tas` pipeline) are still needed for exactly that -
+`scripts/build_pilot_region.py`'s per-municipality output is what
+`scripts/build_zone_overview.py` dissolves into each Portuguese zone's
+outline - but nothing downstream of that (the per-municipality
+temperature API endpoints, the future/GCM/ensemble/anomaly modules,
+and the generic GDD/Winkler cross-check) is displayed or served any
+more. **Update (Sept 2026): that unused layer was removed from the
+codebase entirely** (`src/climate_acquisition.py`,
+`climate_anomalies.py`, `climate_ensemble.py`, `climate_region.py`,
+`climate_selection.py`, `climate_paths.py`, `future_climate_*.py`,
+`future_pilot_export.py`, `bioclimatic_indices.py`, their scripts and
+tests, and the `/api/pilot/{region}`, `/api/pilot/{region}/meta`,
+`/api/pilot/{region}/future...` and `/api/pilot` endpoints in
+`api/main.py`) rather than kept as an unreachable cross-check - see
+`docs/04` Section 1 for why.
 
 **Update 2 (Sept 2026): the professor's first bioclimatic-index
 delivery (`ensemble1`, `docs/04` Section 2.1) is now wired into this
@@ -241,9 +251,10 @@ point-query are the interaction/summary layer built on top of it.
 
 The pilot's shared settings (variable/period/dataset label) and its list
 of regions are read from `config/climate.toml`, section
-`[pilot_platform]`, kept separate from the existing `[pilot]` section
-(which configures the future-climate experiment scaffold in
-`src/future_climate_experiment.py` and is unrelated to this platform).
+`[pilot_platform]`. (An earlier `[pilot]` section configured a
+future-climate experiment scaffold unrelated to this platform; both it
+and the scaffold were removed, Sept 2026 — see Section 6's "Update"
+above.)
 
 ```toml
 [pilot_platform]
@@ -485,7 +496,8 @@ python -m scripts.build_pilot_region --region douro
 python -m scripts.build_pilot_region --region tras-os-montes
 python -m scripts.build_pilot_region --region beira-interior   # once its CAOP/CHELSA data is available
 python -m scripts.build_zone_overview --gisco-file data/raw/boundaries/NUTS_RG_01M_2024_4326.gpkg
-python -m scripts.build_future_pilot_data --region douro ...    # if the future/SSP slices are wanted online too
+python -m scripts.build_indices_catalog
+python -m scripts.build_index_pilot_data
 git add data/processed/pilot
 git commit -m "data: refresh pilot platform data"
 git push
@@ -496,3 +508,37 @@ serves them directly - no script needs to run on Vercel, and nothing
 needs to be re-run just because a new deploy happened. Re-run the
 commands above (and commit again) only when the underlying CHELSA/CAOP
 data actually changes.
+
+**Update (Sept 2026): the exception to the exception.**
+`data/processed/pilot/indices/*.tif` (the bioclimatic-index rasters
+from `build_index_pilot_data.py`, ~136MB across 15 files) turned out
+too big to commit after all - bundling them into the deployed Vercel
+function, on top of its Python dependencies, pushed the function past
+Vercel's function-size limits (500MB "optimized", then the harder
+225MB AWS Lambda ceiling underneath it - see `requirements.txt`'s
+comments for the full story). Committing more static data was not a
+fix; the ceiling is on the *deployed function's total size*, and it
+would recur (worse) once the professor delivers the remaining
+2071-2100 period.
+
+Fix: those 15 `.tif` files live in **Vercel Blob storage** instead
+(a separate store, `aquahub-climate-indices`, connected to this
+project; public read access, no auth needed for `GET`). They are
+**not committed to Git** at all any more (`.gitignore` excludes them
+specifically, even though the rest of `data/processed/pilot/` stays
+committed). `api/main.py`'s `_resolve_raster_path()` checks the local
+`data/processed/pilot/indices/` directory first (so a local
+`uvicorn` run needs no network access, as before) and only falls back
+to fetching from Blob - caching the result under the OS temp directory
+- when a file isn't there, which is exactly the deployed function's
+situation. The small `*_stats.json` sidecars and
+`indices_catalog.json` are unaffected and still committed normally.
+
+**After running `build_index_pilot_data.py` locally**, upload the
+regenerated rasters to Blob (there is no dedicated script for this
+yet - it was done once, by hand, with a small Node script using
+`@vercel/blob`'s `put()`, uploaded to `indices/<filename>` with
+`addRandomSuffix: false` so the URLs stay stable): a proper
+`scripts/upload_index_rasters_to_blob.py` (or an npm script) is a
+reasonable follow-up once this needs to happen more than
+occasionally.
