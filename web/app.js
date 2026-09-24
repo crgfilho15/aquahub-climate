@@ -337,6 +337,84 @@ const FUTURE_SCENARIOS = [
 
 const SELECT_CROP_PROMPT = "Select a Crop, Index, Period and SSP above to view zone data.";
 
+// One short, literature-grounded explanation per category in the
+// professor's indices_catalog.json (his "category" field, kept as
+// written). These describe what a category of index generically
+// represents - not a specific crop/threshold claim - and are cross-
+// checked against the references already attached to that
+// category's own indices in the catalog (Winkler et al. 1974, Huglin
+// 1978, Hijmans et al. 2005, Rivas-Martínez 2004/2008, Tonietto &
+// Carbonneau 2004, Richardson et al. 1974, Hargreaves & Samani 1985,
+// Allen et al. 1998, ETCCDI). Keys must match the catalog's category
+// strings exactly.
+const INDEX_CATEGORY_HELP = {
+  "Acumulação de graus-dia":
+    "Somam o quanto a temperatura diária passou de um limiar de base, " +
+    "acumulado ao longo de um período - a base do Índice de Winkler " +
+    "(Winkler et al., 1974), um dos métodos mais usados para " +
+    "classificar o clima vitícola de uma região.",
+  "Datas de geada e risco de geada primaveril":
+    "Marcam quando ocorrem tipicamente a última geada da primavera e " +
+    "a primeira do outono, e o período livre de geada entre elas - " +
+    "relevante porque uma geada tardia após a brotação pode danificar " +
+    "os ramos jovens.",
+  "Evapotranspiração, balanço hídrico e aridez":
+    "A evapotranspiração de referência (ET0) estima quanta água uma " +
+    "superfície de referência bem irrigada perderia para a atmosfera; " +
+    "comparada com a precipitação, dá uma medida de balanço hídrico/" +
+    "aridez. Geralmente estimada pelas equações de Hargreaves & Samani " +
+    "(1985) ou Penman-Monteith FAO-56 (Allen et al., 1998).",
+  "Frio invernal (dormência)":
+    "Horas/porções de frio e unidades de Utah estimam o acúmulo de " +
+    "frio recebido durante a dormência - muitas fruteiras e videiras " +
+    "precisam de uma quantidade mínima de frio pra brotar normalmente " +
+    "na primavera. O modelo de Utah (Richardson et al., 1974) é uma " +
+    "das formas padrão de quantificar isso.",
+  "Indicadores de fenologia por tempo térmico":
+    "Datas em que um determinado acúmulo de graus-dia é atingido, " +
+    "usadas como indicador de estágios fenológicos (como brotação ou " +
+    "floração) - já que o desenvolvimento da planta costuma acompanhar " +
+    "o calor acumulado, não o calendário.",
+  "Indicadores de risco de doença e de polinização":
+    "Contagens de dias com condições favoráveis a doenças fúngicas " +
+    "(míldio, oídio, podridão, pedrado) ou à polinização/pegamento, " +
+    "com base em limiares de temperatura/umidade publicados na " +
+    "literatura para cada condição.",
+  "Limiares e extremos de temperatura":
+    "Contagens de dias que cruzam limiares específicos de temperatura " +
+    "(dias quentes, frios, de geada) e estatísticas de extremos " +
+    "relacionadas - vários desses seguem o conjunto padrão de índices " +
+    "de extremos climáticos do ETCCDI, usado mundialmente.",
+  "Precipitação":
+    "Totais e extremos de chuva (total anual, dia mais chuvoso, dias " +
+    "secos/chuvosos consecutivos, contagem de dias de chuva forte) - " +
+    "vários também seguem o padrão ETCCDI.",
+  "Stress térmico e ondas de calor":
+    "Índices de duração e frequência de ondas de calor, ou seja, " +
+    "quanto tempo e com que frequência a temperatura permanece acima " +
+    "de um limiar quente por dias consecutivos.",
+  "Variáveis bioclimáticas BIO1-BIO19":
+    "O conjunto padrão de 19 variáveis bioclimáticas de Hijmans et " +
+    "al. (2005) (usado no WorldClim), derivadas de temperatura e " +
+    "precipitação mensais pra resumir médias, sazonalidade e " +
+    "extremos.",
+  "Versões compatíveis com o WorldClim":
+    "Formulações alternativas de algumas variáveis BIO calculadas " +
+    "pra corresponder exatamente à convenção do WorldClim, permitindo " +
+    "compatibilidade direta com esse dataset amplamente usado.",
+  "Índices compostos vitícolas e agroclimáticos":
+    "Índices compostos desenvolvidos especificamente para " +
+    "viticultura/agroclimatologia, combinando temperatura (e por " +
+    "vezes duração do dia ou chuva) num único valor - como o índice " +
+    "heliotérmico de Huglin (Huglin, 1978) e o índice de frescor das " +
+    "noites/índice de secura de Tonietto & Carbonneau (2004).",
+  "Índices de classificação bioclimática":
+    "Índices usados para classificar o bioclima geral de uma região " +
+    "(termicidade, continentalidade, balanço ombrotérmico), seguindo " +
+    "o sistema de classificação bioclimática mundial de Rivas-" +
+    "Martínez (2004, 2008).",
+};
+
 let map = null;
 let zonesLayer = null;
 let indexOverlayGroup = null;
@@ -425,18 +503,14 @@ async function loadZones() {
     }
     featureCollection = await response.json();
   } catch (err) {
-    document.getElementById("banner-subtitle").innerHTML =
-      "No zone has been built yet. Run " +
-      "<code>python -m scripts.build_zone_overview</code> locally " +
-      "and restart the API.";
+    document.getElementById("banner-subtitle").textContent =
+      "The interactive map is temporarily unavailable. Please try again later.";
     return;
   }
 
   if (!featureCollection.features || featureCollection.features.length === 0) {
-    document.getElementById("banner-subtitle").innerHTML =
-      "No zone has been built yet. Run " +
-      "<code>python -m scripts.build_zone_overview</code> locally " +
-      "and restart the API.";
+    document.getElementById("banner-subtitle").textContent =
+      "The interactive map is temporarily unavailable. Please try again later.";
     return;
   }
 
@@ -723,14 +797,12 @@ async function updateIndexView() {
   }
 
   if (!response.ok) {
-    const detail = await response.text();
-    let message = `Not delivered yet for ${currentIndexCode} (${currentEpochLabel}).`;
-    try {
-      message = JSON.parse(detail).detail || message;
-    } catch (err) {
-      // Keep the default message if the body wasn't JSON.
-    }
-    clearIndexView(message);
+    // Deliberately not surfacing the API's raw error detail here - it's
+    // written for developers (e.g. "run this script locally"), not for
+    // site visitors. Always show our own plain-language message instead.
+    clearIndexView(
+      `Data for ${currentIndexCode} (${currentEpochLabel}) is not yet available.`
+    );
     return;
   }
 
@@ -775,8 +847,7 @@ async function loadIndicesCatalog() {
     indicesCatalog = await response.json();
   } catch (err) {
     showBannerWarning(
-      "Indices catalog not found. Run 'python -m scripts.build_indices_catalog' " +
-      "locally, then restart the API."
+      "The crop index catalog is temporarily unavailable. Please try again later."
     );
     document.getElementById("banner-subtitle").textContent = SELECT_CROP_PROMPT;
     return;
@@ -784,6 +855,71 @@ async function loadIndicesCatalog() {
 
   document.getElementById("cultura-select").disabled = false;
   document.getElementById("banner-subtitle").textContent = SELECT_CROP_PROMPT;
+  renderIndexHelp();
+}
+
+function renderIndexHelp() {
+  const container = document.getElementById("index-help-categories");
+  container.innerHTML = "";
+
+  const codesByCategory = {};
+  Object.entries(indicesCatalog.indices).forEach(([code, entry]) => {
+    (codesByCategory[entry.category] ||= []).push(code);
+  });
+
+  Object.keys(codesByCategory)
+    .sort()
+    .forEach((category) => {
+      const block = document.createElement("div");
+      block.className = "index-help-category";
+
+      const heading = document.createElement("h3");
+      heading.textContent = category;
+      block.appendChild(heading);
+
+      const explanation = document.createElement("p");
+      explanation.textContent =
+        INDEX_CATEGORY_HELP[category] ||
+        "Descrição ainda não disponível para esta categoria.";
+      block.appendChild(explanation);
+
+      const codes = document.createElement("p");
+      codes.className = "index-help-codes";
+      codes.textContent = codesByCategory[category].sort().join(", ");
+      block.appendChild(codes);
+
+      container.appendChild(block);
+    });
+
+  document.getElementById("index-help-button").disabled = false;
+}
+
+function setupIndexHelp() {
+  const button = document.getElementById("index-help-button");
+  const overlay = document.getElementById("index-help-overlay");
+  const closeButton = document.getElementById("index-help-close");
+
+  const close = () => {
+    overlay.hidden = true;
+  };
+
+  button.addEventListener("click", () => {
+    overlay.hidden = false;
+  });
+
+  closeButton.addEventListener("click", close);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      close();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !overlay.hidden) {
+      close();
+    }
+  });
 }
 
 function setupFilters() {
@@ -863,6 +999,7 @@ function setupFilters() {
 async function init() {
   initMap();
   setupFilters();
+  setupIndexHelp();
   await loadZones();
   await loadIndicesCatalog();
 }

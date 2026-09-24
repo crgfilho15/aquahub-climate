@@ -18,7 +18,7 @@
         <label class="filter-field">
           Crop:
           <select id="cultura-select" disabled>
-            <option value="">awaiting data from the professor</option>
+            <option value="">loading…</option>
           </select>
         </label>
         <label class="filter-field">
@@ -26,6 +26,14 @@
           <select id="indice-select" disabled>
             <option value="">select a crop</option>
           </select>
+          <button
+            type="button"
+            id="index-help-button"
+            class="help-button"
+            aria-label="What do these indices mean?"
+            title="What do these indices mean?"
+            disabled
+          >?</button>
         </label>
         <label class="filter-field">
           Period:
@@ -77,6 +85,22 @@
       </div>
     </aside>
   </main>
+
+  <div id="index-help-overlay" hidden>
+    <div id="index-help-modal" role="dialog" aria-labelledby="index-help-title">
+      <div id="index-help-header">
+        <h2 id="index-help-title">O que os índices medem</h2>
+        <button type="button" id="index-help-close" aria-label="Fechar">×</button>
+      </div>
+      <p id="index-help-intro">
+        Os índices bioclimáticos e agroclimáticos disponíveis estão agrupados nas
+        categorias abaixo. Cada categoria descreve, em termos gerais, o que aquele
+        grupo de índices mede — para a fórmula e a referência bibliográfica de um
+        índice específico, selecione-o no filtro "Index".
+      </p>
+      <div id="index-help-categories"></div>
+    </div>
+  </div>
 
   <div id="site-footer"></div>
 

@@ -205,6 +205,13 @@ section p {
   max-width: 760px;
 }
 
+/* An intro paragraph directly followed by a card grid should span the
+   grid's full width, not the 760px reading-width cap above - otherwise
+   it looks narrower than the wide grid right beneath it. */
+section p:has(+ .card-grid) {
+  max-width: none;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

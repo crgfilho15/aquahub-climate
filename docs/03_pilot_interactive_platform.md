@@ -458,14 +458,27 @@ replace running the pipeline against real data locally.
   per-municipality annual mean temperature (historical or a future
   ensemble mean), explicitly labelled "provisório" in the UI, as a
   working placeholder until that is confirmed.
+- **Update (Sept 2026):** the note below about Beira Interior having
+  "no CHELSA/CAOP data run against it yet" is stale -
+  `data/processed/pilot/beira-interior_pilot.geojson` exists (23
+  municipalities), so that build has in fact run. What's still
+  genuinely unconfirmed is different: whether `nuts3_names = ["Beira
+  Baixa", "Beiras e Serra da Estrela"]` (see Section 7) is officially
+  the correct match for the project's "Beira Interior" area - that's
+  a geographic-definition question for the research team, not a
+  missing-build one. All 5 zones (including Beira Interior) now have
+  real bioclimatic index data via `ensemble1` (Section 6), independent
+  of this open question.
 - Douro and Terras de Trás-os-Montes have real data; Beira Interior has
-  an inferred (not yet officially confirmed) `nuts3_names` and no
-  CHELSA/CAOP data run against it yet (see Section 7); Castilla y
-  León/Extremadura have confirmed `NUTS_ID` codes and can show their
-  outline on the map (via `--gisco-file`), but have no climate-data
-  pipeline yet - `scripts/build_zone_overview.py` only loads their
-  geometry, it does not compute a whole-region zonal statistic from
-  CHELSA the way the per-municipality Portuguese pipeline does.
+  an inferred (not yet officially confirmed) `nuts3_names` (see Section
+  7); Castilla y León/Extremadura have confirmed `NUTS_ID` codes and
+  can show their outline on the map (via `--gisco-file`), but have no
+  historical per-municipality climate-data pipeline - `scripts/
+  build_zone_overview.py` only loads their geometry, it does not
+  compute a whole-region zonal statistic from CHELSA the way the
+  per-municipality Portuguese pipeline does. (This doesn't affect the
+  bioclimatic index data in Section 6, which is delivered per zone
+  polygon, not derived from this CHELSA pipeline.)
 - No CSV/GeoTIFF export from the UI yet (raised as an open question in
   `docs/02`, item 44).
 - The OpenStreetMap basemap requires internet access at runtime; the
