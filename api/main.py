@@ -18,10 +18,11 @@ import os
 import tempfile
 import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
-import rasterio
+import tifffile
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -271,6 +272,77 @@ def _resolve_raster_path(filename: str) -> Path | None:
     return cache_path
 
 
+def _read_index_raster(raster_path: Path) -> dict:
+    """
+    Decode one of our multi-band index GeoTIFFs (single-page,
+    band-interleaved uint16, written by src/index_pilot_export.py) via
+    tifffile + plain TIFF/GDAL tag parsing - deliberately not
+    rasterio, whose bundled GDAL needs a system libexpat.so.1 that
+    isn't present on Vercel's Python runtime. Confirmed against the
+    real public.ecr.aws/lambda/python:3.12 image (Sept 2026): importing
+    rasterio there raises `ImportError: libexpat.so.1: cannot open
+    shared object file`, which crashed the entire deployed app (every
+    route, including static files) since the failure happens at
+    module-import time. tifffile has no such native dependency.
+
+    Our rasters are always plain EPSG:4326 (lat/lon) - no CRS/
+    reprojection machinery is needed, just the affine transform's two
+    GeoTIFF tags (ModelPixelScaleTag, ModelTiepointTag).
+    """
+
+    with tifffile.TiffFile(str(raster_path)) as tif:
+        page = tif.pages[0]
+        array = page.asarray()
+        tags = page.tags
+        pixel_scale = tags["ModelPixelScaleTag"].value
+        tie_point = tags["ModelTiepointTag"].value
+        gdal_metadata_xml = tags["GDAL_METADATA"].value
+        nodata = float(tags["GDAL_NODATA"].value)
+        width = page.imagewidth
+        height = page.imagelength
+
+    if array.ndim == 2:
+        array = array[:, :, np.newaxis]
+
+    pixel_width, pixel_height = pixel_scale[0], pixel_scale[1]
+    west, north = tie_point[3], tie_point[4]
+    bounds = {
+        "west": west,
+        "north": north,
+        "east": west + width * pixel_width,
+        "south": north - height * pixel_height,
+    }
+
+    band_count = array.shape[-1]
+    band_names: list[str | None] = [None] * band_count
+    scales = [1.0] * band_count
+    offsets = [0.0] * band_count
+
+    for item in ET.fromstring(gdal_metadata_xml).findall("Item"):
+        sample = int(item.get("sample", "0"))
+        role = item.get("role")
+
+        if role == "description":
+            band_names[sample] = item.text
+        elif role == "scale":
+            scales[sample] = float(item.text)
+        elif role == "offset":
+            offsets[sample] = float(item.text)
+
+    return {
+        "array": array,
+        "band_names": band_names,
+        "scales": scales,
+        "offsets": offsets,
+        "nodata": nodata,
+        "bounds": bounds,
+        "width": width,
+        "height": height,
+        "pixel_width": pixel_width,
+        "pixel_height": pixel_height,
+    }
+
+
 def _read_zone_index_grid(slug: str, code: str, epoch: str) -> dict | None:
     """
     One zone's grid for one index/epoch: bounds, width/height, the
@@ -296,19 +368,17 @@ def _read_zone_index_grid(slug: str, code: str, epoch: str) -> dict | None:
     if code not in stats:
         return None
 
-    with rasterio.open(raster_path) as src:
-        band_names = list(src.descriptions)
+    raster = _read_index_raster(raster_path)
+    band_names = raster["band_names"]
 
-        if code not in band_names:
-            return None
+    if code not in band_names:
+        return None
 
-        band_index = band_names.index(code) + 1
-        raw = src.read(band_index)
-        scale = src.scales[band_index - 1]
-        offset = src.offsets[band_index - 1]
-        nodata = src.nodata
-        bounds = src.bounds
-        width, height = src.width, src.height
+    band_index = band_names.index(code)
+    raw = raster["array"][:, :, band_index]
+    scale = raster["scales"][band_index]
+    offset = raster["offsets"][band_index]
+    nodata = raster["nodata"]
 
     decoded = np.where(raw == nodata, np.nan, raw * scale + offset)
 
@@ -321,14 +391,9 @@ def _read_zone_index_grid(slug: str, code: str, epoch: str) -> dict | None:
 
     return {
         "slug": slug,
-        "bounds": {
-            "west": bounds.left,
-            "south": bounds.bottom,
-            "east": bounds.right,
-            "north": bounds.top,
-        },
-        "width": width,
-        "height": height,
+        "bounds": raster["bounds"],
+        "width": raster["width"],
+        "height": raster["height"],
         "values": values,
         "mean": round(float(zone_stats["mean"]), 3),
         "min": round(float(zone_stats["min"]), 3),
@@ -397,30 +462,31 @@ def _get_index_point(
             detail=INDEX_BUILD_HINT_TEMPLATE.format(code=code, epoch=epoch),
         )
 
-    with rasterio.open(raster_path) as src:
-        band_names = list(src.descriptions)
+    raster = _read_index_raster(raster_path)
+    band_names = raster["band_names"]
 
-        if code not in band_names:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Index '{code}' not present in {raster_path.name}.",
-            )
+    if code not in band_names:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Index '{code}' not present in {raster_path.name}.",
+        )
 
-        band_index = band_names.index(code) + 1
-        row, col = src.index(lon, lat)
+    band_index = band_names.index(code)
+    west = raster["bounds"]["west"]
+    north = raster["bounds"]["north"]
+    col = int((lon - west) / raster["pixel_width"])
+    row = int((north - lat) / raster["pixel_height"])
 
-        if not (0 <= row < src.height and 0 <= col < src.width):
-            raise HTTPException(
-                status_code=404,
-                detail="Point is outside this zone's raster extent.",
-            )
+    if not (0 <= row < raster["height"] and 0 <= col < raster["width"]):
+        raise HTTPException(
+            status_code=404,
+            detail="Point is outside this zone's raster extent.",
+        )
 
-        raw = src.read(
-            band_index, window=((row, row + 1), (col, col + 1))
-        )[0, 0]
-        scale = src.scales[band_index - 1]
-        offset = src.offsets[band_index - 1]
-        nodata = src.nodata
+    raw = raster["array"][row, col, band_index]
+    scale = raster["scales"][band_index]
+    offset = raster["offsets"][band_index]
+    nodata = raster["nodata"]
 
     if raw == nodata:
         raise HTTPException(
