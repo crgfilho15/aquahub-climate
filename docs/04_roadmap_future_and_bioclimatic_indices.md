@@ -47,6 +47,26 @@ Track B is scoped so it stays useful regardless of how Track A resolves —
 e.g. generalising the pipeline to `tasmin`/`tasmax`/`pr` is needed whichever
 future dataset is chosen.
 
+> **Retired (Sept 2026):** Track B's GCM-download-and-compute engineering
+> (Phases 2-6 below: `climate_acquisition.py`, `climate_ensemble.py`,
+> `climate_anomalies.py`, `climate_region.py`, `climate_selection.py`,
+> `climate_paths.py`, `future_climate_experiment.py`,
+> `future_climate_pipeline.py`, `future_climate_processing.py`,
+> `future_pilot_export.py`, and the generic GDD/Winkler cross-check
+> `bioclimatic_indices.py` — plus their scripts, tests, and the
+> `/api/pilot/{region}/future/...` API endpoints) was **removed from the
+> codebase**, not just left unused. Once the professor started delivering
+> pre-computed bioclimatic indices directly (`ensemble1`, Section 2.1),
+> the entire premise of Phases 2-6 — download raw future GCM climate data
+> ourselves and compute indices from it — stopped being this project's
+> job. Track A's underlying scientific questions (Section 2) remain valid
+> to ask the professor if a future need for raw future-climate data
+> arises, but there is deliberately no code sitting idle waiting for
+> that. Phase 1 (multi-variable `tas`/`tasmin`/`tasmax`/`pr` core,
+> `climate_processing.py`) and Phase 7 (ingesting the professor's
+> delivered indices) are unaffected — both are still live, see Section 6
+> below and `docs/03`.
+
 ---
 
 ### 2. Track A — decisions needed from the professor
@@ -298,7 +318,7 @@ locally (same 1981–2010 baseline, same Douro region) and run through
 tests prove the logic is correct, not that the real CHELSA files match
 the expected naming/unit assumptions.
 
-#### Phase 2 — Future data acquisition — ✅ done, confirmed against the real CHELSA server (Sept 2026)
+#### Phase 2 — Future data acquisition — ✅ done, confirmed against the real CHELSA server (Sept 2026) — 🗑️ code removed (Sept 2026, see Section 1)
 
 *Unblocked: the user adopted the Section 3 proposal (monthly CHELSA v2.1,
 5 GCMs) as the working assumption to build against, pending final
@@ -421,7 +441,7 @@ fixes → clean success with plausible, metadata-consistent values.
 bbox, `tas`, MRI-ESM2-0, SSP3-7.0, 2041–2070), spot-checked against
 plausible values for the region — done above.
 
-#### Phase 3 — Multi-GCM processing — ✅ confirmed against real data for one scenario/period (Sept 2026), full sweep pending
+#### Phase 3 — Multi-GCM processing — ✅ confirmed against real data for one scenario/period (Sept 2026), full sweep pending — 🗑️ code removed (Sept 2026, see Section 1)
 
 *Depended on Phase 2, which is now done.*
 
@@ -520,7 +540,7 @@ real, not just against synthetic fixtures.
 `tas`, all 5 GCMs, ssp585, 2041-2070), plausible values with the right
 geographic pattern.
 
-#### Phase 4 — Ensemble and uncertainty — ✅ done (Sept 2026)
+#### Phase 4 — Ensemble and uncertainty — ✅ done (Sept 2026) — 🗑️ code removed (Sept 2026, see Section 1)
 
 *Depends on Phase 3, which is now done.*
 
@@ -554,7 +574,7 @@ once real Phase 3 data is available (the partial ssp585/2041-2070 CSV
 already works; re-run once the full sweep finishes for the complete
 picture).
 
-#### Phase 5 — Climate-change anomalies — ✅ done (Sept 2026)
+#### Phase 5 — Climate-change anomalies — ✅ done (Sept 2026) — 🗑️ code removed (Sept 2026, see Section 1)
 
 *Depends on Phase 4, which is now done; independent of Phases 6–8.*
 
@@ -585,7 +605,7 @@ picture).
 `python -m scripts.build_anomaly_climatology <path to a Phase 4 ensemble CSV>`
 once real Phase 3/4 data is available for a region/variable.
 
-#### Phase 6 — General bioclimatic indices — 🟡 GDD/Winkler + precipitation done (Sept 2026)
+#### Phase 6 — General bioclimatic indices — 🟡 GDD/Winkler + precipitation done (Sept 2026) — 🗑️ code removed (Sept 2026, see Section 1)
 
 *Depended on Phase 1 (multi-variable) for the historical baseline version
 and Phase 2's data-resolution decision for the future version - both done.*
@@ -831,6 +851,16 @@ layer at a time, rather than as one big-bang release.*
 anomaly view (verified end-to-end with synthetic data); pending one
 real run against the user's actual future data.
 
+> **Retired (Sept 2026):** everything in this "first slice" (
+> `src/future_pilot_export.py`, `scripts/build_future_pilot_data.py`,
+> the `/api/pilot/{region}/future...` endpoints, the old per-region
+> dropdown UI's period selector, and `tests/test_future_pilot_export.py`)
+> was **removed from the codebase**, superseded first by the Atlas
+> rewrite (Update 2 below) and then by the broader Track B cleanup (see
+> Section 1). It was already unreachable from the live UI before
+> removal - this just made that permanent instead of leaving it as
+> unreferenced code.
+
 **Update (Sept 2026): the map's temperature display was retired.**
 With Phase 7 confirmed as "ingest the professor's delivered indices,
 don't compute our own" (see the Track A table above), showing
@@ -839,10 +869,12 @@ bioclimatic index. `scripts/build_zone_overview.py`/
 `src/zone_overview_export.py` now mark every zone `"built": false`
 regardless of whether its temperature pipeline has run, so all 5 zones
 render as "pending" - the same treatment Castilla y León/Extremadura
-already had. This is a display-layer change only: the temperature
-pipeline itself (Phases 1-6) is untouched and keeps working/testing
-normally, so it stays available later as an independent cross-check
-once real index data is ingested (see `docs/03` Section 6).
+already had. At the time, this was a display-layer change only: the
+temperature pipeline (Phases 1-6) kept working/testing normally
+underneath. **Update (Sept 2026): Phases 2-6's code has since been
+removed** (see Section 1) - Phase 1's multi-variable historical
+pipeline stays, since zone geometry still depends on it (`docs/03`
+Section 6).
 
 **Update 2 (Sept 2026): real index data now renders on the map.**
 `/api/pilot/zones` (zone geometry, `built: false`) is unchanged and
