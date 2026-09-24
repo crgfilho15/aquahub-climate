@@ -1,0 +1,19 @@
+# Runtime dependencies for the deployed Vercel function ONLY.
+#
+# Vercel's Python builder uses the requirements.txt nearest the
+# function entrypoint (api/main.py) instead of the repo root's, so
+# this list intentionally does NOT match /requirements.txt. api/main.py
+# only ever imports fastapi, rasterio and numpy (plus src/climate_config.py,
+# which is pure stdlib) - it reads pre-generated GeoJSON/JSON/GeoTIFF
+# files straight off disk, it never runs the data-preparation pipeline.
+#
+# The heavy geospatial packages in /requirements.txt (geopandas,
+# rioxarray, xarray, dask, pyproj, shapely, exactextract, ...) are
+# build-time-only tools for scripts/*.py, run locally where
+# data/raw/ is available (see docs/03 Section 3) - bundling them into
+# the deployed function is what pushed the function past Vercel's
+# 500MB size limit once data/processed/pilot/indices/*.tif (~136MB)
+# was added (Sept 2026).
+fastapi==0.141.1
+rasterio==1.5.1
+numpy==2.5.3

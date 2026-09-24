@@ -1,0 +1,14 @@
+# Keep the deployed function bundle small (Vercel's Python functions
+# have a 500MB unzipped limit - see api/requirements.txt for why the
+# runtime dependency list is trimmed separately from this). None of
+# these are read by api/main.py at request time.
+.venv/
+.pytest_cache/
+.claude/
+notebooks/
+outputs/
+scripts/
+tests/
+docs/
+data/raw/
+*.ipynb
