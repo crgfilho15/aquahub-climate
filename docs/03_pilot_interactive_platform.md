@@ -176,31 +176,64 @@ indices himself and delivering them directly (`docs/04` Phase 7) - so
 Keeping it displayed risked it being mistaken for the real (pending)
 index, so `scripts/build_zone_overview.py`/`src/zone_overview_export.py`
 now mark every zone `"built": false`, whether or not its underlying
-temperature pipeline has actually run. **All 5 zones therefore render
-identically to how Castilla y León/Extremadura rendered before this
-change** - a dashed outline, "pending" tooltip, and a "no data yet"
-panel message on click. The temperature pipeline itself
+temperature pipeline has actually run. `/api/pilot/zones` (and this
+`"built": false` marking) is now used only as the source of zone
+**geometry** - boundaries, labels, map fit - not of what gets displayed
+on top of them. The temperature pipeline itself
 (`src/pilot_export.py`, `src/climate_pipeline.py`, the future/ensemble/
 anomaly modules, `src/bioclimatic_indices.py`) is untouched and still
-runs/tests normally - only this map stopped surfacing its output, so
-it stays available as an independent cross-check once the professor's
-indices arrive (see `docs/04`).
+runs/tests normally - it just isn't what the map shows; it stays
+available as an independent cross-check.
 
-- A banner with 4 filters: **Cultura**, **Índice**, **Período** and
-  **SSP** - all disabled, since no zone has index data to filter by yet
-  (see Section 1 and the update above).
-- A single Leaflet map showing every configured zone at once, each drawn
-  as one dissolved outline (not subdivided by municipality), all in the
-  same neutral dashed "pending" style and tooltip.
-- Clicking a zone opens a side panel with a "no processed climate data
-  is available for this zone yet" message - identical for all 5 zones.
+**Update 2 (Sept 2026): the professor's first bioclimatic-index
+delivery (`ensemble1`, `docs/04` Section 2.1) is now wired into this
+map, superseding the "all zones always pending" behaviour above.**
+
+- A banner with 4 filters: **Crop**, **Index**, **Period** and **SSP**.
+  Crop enables once `GET /api/indices` (the professor's index catalog)
+  loads; choosing a crop filters Index to that crop's relevant codes
+  (`CODE - Nome`, kept in the professor's original Portuguese - English
+  translation is a deliberately separate, later pass, see `docs/04`
+  Phase 7); choosing an index shows its formula/reference in a
+  highlighted box. Period/SSP always show all 3 periods/2 SSPs from
+  `config/climate.toml`, since which combinations are actually
+  delivered can change independently of the UI.
+- **Once a full Crop/Index/Period/SSP selection points at data that has
+  actually been delivered**, each of the 5 zones renders as a real
+  per-pixel heatmap - not a flat single color per zone. The API
+  (`GET /api/pilot/zones/index/{code}[/{scenario}/{period}]`) returns
+  each zone's decoded pixel grid plus a **shared min/max across all 5
+  zones**; the frontend paints each grid onto an HTML `<canvas>` and
+  overlays it on the map via `L.imageOverlay`, positioned by the
+  raster's real geographic bounds, with one shared gradient-bar legend
+  (same blue→cream→red ramp the temperature map used, now generic over
+  any index's min/max). Browser-default bilinear scaling smooths the
+  image as Leaflet zooms it - no `image-rendering: pixelated`, and no
+  data-level resampling beyond what the raster already has (~1km,
+  stated in a caption next to the legend).
+- **Whenever the selection doesn't point at delivered data** (nothing
+  selected yet, an index not relevant to the chosen crop, or a
+  period/SSP `ensemble1` doesn't cover, e.g. anything except historical
+  and the two SSPs @ 2041-2070) the zones fall back to the original
+  dashed "pending" style, and a warning banner explains exactly what's
+  missing - never a plausible-looking placeholder value, per this
+  project's standing rule (`CLAUDE.md`).
+- Clicking a zone opens a side panel with that zone's mean/min/max and
+  a KDE distribution chart of every pixel's value in the zone (reusing
+  the same chart component the temperature map used, now fed the
+  index's pixel values instead of per-municipality temperatures).
+  Clicking a point on the map, when index data is active, additionally
+  calls a dedicated point-query endpoint
+  (`GET /api/pilot/{region}/index/{code}[/{scenario}/{period}]/point`)
+  and shows a popup with that exact pixel's value - the heatmap image
+  itself is for visual reading, this is what gives an exact number.
 
 This intentionally mirrors the "camada científica + camada de
 interação" separation already established in `docs/01` Section 20: the
-underlying ~1 km raster remains the scientific product; this platform's
-dissolved zone outlines are the interaction/summary layer built on top
-of it - today that layer just has nothing of the professor's to show
-yet.
+underlying ~1 km raster remains the scientific product (now the
+professor's own delivered indices, not the retired temperature
+pipeline); this platform's per-zone heatmap + distribution chart +
+point-query are the interaction/summary layer built on top of it.
 
 ---
 

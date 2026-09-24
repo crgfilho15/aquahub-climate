@@ -87,6 +87,12 @@ For example:
 - CHELSA climatology future products;
 - another downscaled CMIP6 dataset.
 
+> **Status note (2026-09-23):** the professor's first real delivery
+> (`ensemble1`) points to NEX-GDDP-CMIP6 (via `NEX_1km_outputs`), not
+> CHELSA — see `docs/04` Section 2.1. Treated as a working hypothesis
+> until he confirms in writing; not yet a definitive answer to this
+> question.
+
 13. Should the future methodology follow the CHELSA-ISIMIP3b approach used in the MONTEVITIS reference?
 
 ---
@@ -152,6 +158,11 @@ UKESM1-0-LL
 ```
 
 19. Should individual GCM results remain available to researchers, or should the platform primarily expose the ensemble result?
+
+> **Status note (2026-09-23):** `ensemble1`'s global attributes list 4
+> GCMs, not the 9-model MONTEVITIS reference set above — see `docs/04`
+> Section 2.1. Working hypothesis, still pending the professor's
+> written confirmation.
 
 ---
 
@@ -254,6 +265,13 @@ Potential examples include:
 - growing-season precipitation;
 - extreme-temperature indicators.
 
+> **Status note (2026-09-23):** answered by delivery, not by this
+> document's original literature-review plan — the professor
+> calculated and delivered 129 indices with formulas, literature
+> references and per-crop relevance flags (`indices_por_cultura.csv`),
+> now wired into the Climate Atlas (Crop/Index filters, formula
+> display, per-pixel heatmap). See `docs/04` Section 2.1 and Phase 7.
+
 ---
 
 ## 12. Crop-specific thresholds
@@ -341,6 +359,11 @@ advanced mode
 42. Should users be able to click a municipality or geographic region and obtain its climatological summary?
 
 43. Should individual ~1 km raster cells also be queryable?
+
+> **Status note (2026-09-23):** implemented for the delivered
+> bioclimatic indices — clicking a point inside a zone on the Climate
+> Atlas returns that exact pixel's value via a dedicated point-query
+> endpoint. See `docs/04` Phase 7/9.
 
 ---
 

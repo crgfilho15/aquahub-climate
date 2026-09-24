@@ -14,7 +14,10 @@ import json
 import os
 from pathlib import Path
 
+import numpy as np
+import rasterio
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -31,6 +34,7 @@ BUILD_HINT_TEMPLATE = (
 )
 
 app = FastAPI(title="AquaHub Climate Pilot API")
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 def get_pilot_data_dir() -> Path:
@@ -308,6 +312,308 @@ def get_future_pilot_metadata(
         _read_future_pilot_json(
             region, variable, scenario, period, "_meta.json"
         )
+    )
+
+
+def get_indices_catalog_path() -> Path:
+    """
+    Path to the professor's crop-index catalog (src/indices_catalog.py
+    + scripts/build_indices_catalog.py's output). Overridable via
+    AQUAHUB_INDICES_CATALOG_PATH, primarily for tests.
+    """
+
+    override = os.environ.get("AQUAHUB_INDICES_CATALOG_PATH")
+
+    if override:
+        return Path(override)
+
+    return get_pilot_data_dir() / "indices_catalog.json"
+
+
+def get_index_pilot_data_dir() -> Path:
+    """
+    Directory containing the per-zone/epoch index rasters and stats
+    (scripts/build_index_pilot_data.py's output). Overridable via
+    AQUAHUB_INDEX_PILOT_DATA_DIR, primarily for tests.
+    """
+
+    override = os.environ.get("AQUAHUB_INDEX_PILOT_DATA_DIR")
+
+    if override:
+        return Path(override)
+
+    return get_pilot_data_dir() / "indices"
+
+
+INDICES_CATALOG_BUILD_HINT = (
+    "Indices catalog not found. Run "
+    "'python -m scripts.build_indices_catalog' locally, then restart "
+    "this API."
+)
+
+
+@app.get("/api/indices")
+def get_indices_catalog() -> JSONResponse:
+    """
+    The professor's crop-index catalog: code, name, formula,
+    reference and per-crop relevance for every delivered bioclimatic
+    index (see src/indices_catalog.py - content is in Portuguese as
+    delivered, not yet translated, see docs/04 Phase 7).
+    """
+
+    path = get_indices_catalog_path()
+
+    if not path.exists():
+        raise HTTPException(
+            status_code=404, detail=INDICES_CATALOG_BUILD_HINT
+        )
+
+    return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _index_code_or_404(code: str) -> str:
+    path = get_indices_catalog_path()
+
+    if not path.exists():
+        raise HTTPException(
+            status_code=404, detail=INDICES_CATALOG_BUILD_HINT
+        )
+
+    catalog = json.loads(path.read_text(encoding="utf-8"))
+
+    if code not in catalog.get("indices", {}):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown index code: '{code}'.",
+        )
+
+    return code
+
+
+def _scenario_period_or_404(scenario: str, period: str) -> tuple[str, str]:
+    config = load_climate_config()
+
+    configured_scenarios = set(config["future"]["scenarios"])
+    configured_periods = set(config["future"]["periods"])
+
+    if scenario not in configured_scenarios:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown scenario: '{scenario}'. "
+                f"Configured scenarios: {sorted(configured_scenarios)}"
+            ),
+        )
+
+    if period not in configured_periods:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown period: '{period}'. "
+                f"Configured periods: {sorted(configured_periods)}"
+            ),
+        )
+
+    return scenario, period
+
+
+INDEX_BUILD_HINT_TEMPLATE = (
+    "Index pilot data for '{code}' ({epoch}) not found. Run "
+    "'python -m scripts.build_index_pilot_data' locally, then restart "
+    "this API."
+)
+
+
+def _read_zone_index_grid(slug: str, code: str, epoch: str) -> dict | None:
+    """
+    One zone's grid for one index/epoch: bounds, width/height, the
+    decoded value grid (NaN as null), and mean/min/max. Returns None
+    (not a 404 by itself - the caller decides) if this zone/epoch
+    hasn't been built yet, so a partially-delivered epoch still shows
+    whichever zones *are* ready instead of failing outright.
+    """
+
+    data_dir = get_index_pilot_data_dir()
+    raster_path = data_dir / f"{slug}_{epoch}.tif"
+    stats_path = data_dir / f"{slug}_{epoch}_stats.json"
+
+    if not raster_path.exists() or not stats_path.exists():
+        return None
+
+    stats = json.loads(stats_path.read_text(encoding="utf-8"))
+
+    if code not in stats:
+        return None
+
+    with rasterio.open(raster_path) as src:
+        band_names = list(src.descriptions)
+
+        if code not in band_names:
+            return None
+
+        band_index = band_names.index(code) + 1
+        raw = src.read(band_index)
+        scale = src.scales[band_index - 1]
+        offset = src.offsets[band_index - 1]
+        nodata = src.nodata
+        bounds = src.bounds
+        width, height = src.width, src.height
+
+    decoded = np.where(raw == nodata, np.nan, raw * scale + offset)
+
+    values = [
+        [None if np.isnan(v) else round(float(v), 3) for v in row]
+        for row in decoded
+    ]
+
+    zone_stats = stats[code]
+
+    return {
+        "slug": slug,
+        "bounds": {
+            "west": bounds.left,
+            "south": bounds.bottom,
+            "east": bounds.right,
+            "north": bounds.top,
+        },
+        "width": width,
+        "height": height,
+        "values": values,
+        "mean": round(float(zone_stats["mean"]), 3),
+        "min": round(float(zone_stats["min"]), 3),
+        "max": round(float(zone_stats["max"]), 3),
+    }
+
+
+def _get_zones_index(code: str, epoch: str) -> JSONResponse:
+    code = _index_code_or_404(code)
+
+    zone_grids = []
+
+    for region in get_configured_regions():
+        grid = _read_zone_index_grid(region["slug"], code, epoch)
+
+        if grid is not None:
+            grid["label"] = region["label"]
+            zone_grids.append(grid)
+
+    if not zone_grids:
+        raise HTTPException(
+            status_code=404,
+            detail=INDEX_BUILD_HINT_TEMPLATE.format(code=code, epoch=epoch),
+        )
+
+    return JSONResponse(
+        {
+            "code": code,
+            "epoch": epoch,
+            "global_min": min(z["min"] for z in zone_grids),
+            "global_max": max(z["max"] for z in zone_grids),
+            "zones": zone_grids,
+        }
+    )
+
+
+@app.get("/api/pilot/zones/index/{code}")
+def get_zones_index_historical(code: str) -> JSONResponse:
+    """All 5 zones' grid + stats for one index, historical (1981-2010)."""
+
+    return _get_zones_index(code, epoch="historical")
+
+
+@app.get("/api/pilot/zones/index/{code}/{scenario}/{period}")
+def get_zones_index_future(
+    code: str, scenario: str, period: str
+) -> JSONResponse:
+    """All 5 zones' grid + stats for one index, one future scenario/period."""
+
+    scenario, period = _scenario_period_or_404(scenario, period)
+
+    return _get_zones_index(code, epoch=f"{scenario}_{period}")
+
+
+def _get_index_point(
+    region: str, code: str, epoch: str, lat: float, lon: float
+) -> JSONResponse:
+    region = _region_slug_or_404(region)
+    code = _index_code_or_404(code)
+
+    raster_path = get_index_pilot_data_dir() / f"{region}_{epoch}.tif"
+
+    if not raster_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=INDEX_BUILD_HINT_TEMPLATE.format(code=code, epoch=epoch),
+        )
+
+    with rasterio.open(raster_path) as src:
+        band_names = list(src.descriptions)
+
+        if code not in band_names:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Index '{code}' not present in {raster_path.name}.",
+            )
+
+        band_index = band_names.index(code) + 1
+        row, col = src.index(lon, lat)
+
+        if not (0 <= row < src.height and 0 <= col < src.width):
+            raise HTTPException(
+                status_code=404,
+                detail="Point is outside this zone's raster extent.",
+            )
+
+        raw = src.read(
+            band_index, window=((row, row + 1), (col, col + 1))
+        )[0, 0]
+        scale = src.scales[band_index - 1]
+        offset = src.offsets[band_index - 1]
+        nodata = src.nodata
+
+    if raw == nodata:
+        raise HTTPException(
+            status_code=404,
+            detail="No data at this point (outside the zone polygon).",
+        )
+
+    return JSONResponse(
+        {
+            "region": region,
+            "code": code,
+            "epoch": epoch,
+            "lat": lat,
+            "lon": lon,
+            "value": round(float(raw) * scale + offset, 3),
+        }
+    )
+
+
+@app.get("/api/pilot/{region}/index/{code}/point")
+def get_index_point_historical(
+    region: str, code: str, lat: float, lon: float
+) -> JSONResponse:
+    """Exact pixel value at (lat, lon) for one index, historical."""
+
+    return _get_index_point(region, code, "historical", lat, lon)
+
+
+@app.get("/api/pilot/{region}/index/{code}/{scenario}/{period}/point")
+def get_index_point_future(
+    region: str,
+    code: str,
+    scenario: str,
+    period: str,
+    lat: float,
+    lon: float,
+) -> JSONResponse:
+    """Exact pixel value at (lat, lon) for one index, one future
+    scenario/period."""
+
+    scenario, period = _scenario_period_or_404(scenario, period)
+
+    return _get_index_point(
+        region, code, f"{scenario}_{period}", lat, lon
     )
 
 

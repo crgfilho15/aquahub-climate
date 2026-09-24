@@ -4,9 +4,9 @@ const COLOR_STOPS = [
   { t: 1.0, color: [178, 40, 33] },
 ];
 
-function temperatureToColor(value, min, max) {
+function colorForValue(value, min, max) {
   if (max === min) {
-    return "rgb(150,150,150)";
+    return [150, 150, 150];
   }
 
   const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
@@ -25,11 +25,14 @@ function temperatureToColor(value, min, max) {
   const span = upper.t - lower.t || 1;
   const localT = (t - lower.t) / span;
 
-  const rgb = lower.color.map((channel, i) =>
+  return lower.color.map((channel, i) =>
     Math.round(channel + (upper.color[i] - channel) * localT)
   );
+}
 
-  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+function temperatureToColor(value, min, max) {
+  const [r, g, b] = colorForValue(value, min, max);
+  return `rgb(${r},${g},${b})`;
 }
 
 // Gaussian kernel density estimate over a small set of observed
@@ -47,8 +50,17 @@ function gaussianKernelDensity(values, gridSize = 120) {
   // Silverman's rule of thumb for kernel bandwidth.
   const bandwidth = 1.06 * stdDev * Math.pow(n, -1 / 5) || 1;
 
-  const dataMin = Math.min(...values);
-  const dataMax = Math.max(...values);
+  // Plain loops, not Math.min(...values)/Math.max(...values): spreading
+  // a per-pixel array (up to ~147k values for Castilla y Leon) into a
+  // function call exceeds the JS engine's argument-count limit
+  // (~65k in Chromium) and throws silently, which is why only the
+  // smaller zones (e.g. Extremadura's 62,531 pixels) ever rendered.
+  let dataMin = values[0];
+  let dataMax = values[0];
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i] < dataMin) dataMin = values[i];
+    if (values[i] > dataMax) dataMax = values[i];
+  }
   const pad = (dataMax - dataMin) * 0.25 || bandwidth * 3;
   const gridMin = dataMin - pad;
   const gridMax = dataMax + pad;
@@ -68,14 +80,9 @@ function gaussianKernelDensity(values, gridSize = 120) {
 }
 
 // Draws a smooth distribution curve (Gaussian KDE) for a set of
-// observed values, with a crosshair, value-leads tooltip, keyboard
-// nav, and a rug plot along the axis showing each real observed value
-// under the smoothed curve. Today "values" is one annual mean
-// temperature per municipality within the clicked zone (historical or
-// a future ensemble mean, depending on the Period/SSP filters) -
-// this is a provisional choice pending confirmation with the
-// professor of what the distribution axis should ultimately show
-// (see docs/03).
+// observed values, with a crosshair and value-reading tooltip on
+// hover/keyboard nav. "values" is that zone's flattened per-pixel
+// index grid (up to ~147k values for Castilla y Leon).
 function drawDistributionChart(svg, values, options = {}) {
   svg.innerHTML = "";
 
@@ -85,7 +92,7 @@ function drawDistributionChart(svg, values, options = {}) {
 
   const width = 300;
   const height = 160;
-  const padding = { top: 10, right: 12, bottom: 24, left: 12 };
+  const padding = { top: 10, right: 12, bottom: 34, left: 24 };
 
   const grid = gaussianKernelDensity(values);
   const maxDensity = Math.max(...grid.map((p) => p.density)) || 1;
@@ -112,6 +119,28 @@ function drawDistributionChart(svg, values, options = {}) {
   axis.setAttribute("stroke", "#c7ccd3");
   svg.appendChild(axis);
 
+  const xAxisTitle = document.createElementNS(ns, "text");
+  xAxisTitle.setAttribute("x", padding.left + plotWidth / 2);
+  xAxisTitle.setAttribute("y", height - 4);
+  xAxisTitle.setAttribute("text-anchor", "middle");
+  xAxisTitle.setAttribute("font-size", "8.5");
+  xAxisTitle.setAttribute("fill", "#5b6675");
+  xAxisTitle.textContent = options.xLabel || "Value";
+  svg.appendChild(xAxisTitle);
+
+  const yAxisTitle = document.createElementNS(ns, "text");
+  yAxisTitle.setAttribute("x", 0);
+  yAxisTitle.setAttribute("y", 0);
+  yAxisTitle.setAttribute("text-anchor", "middle");
+  yAxisTitle.setAttribute("font-size", "8.5");
+  yAxisTitle.setAttribute("fill", "#5b6675");
+  yAxisTitle.setAttribute(
+    "transform",
+    `translate(9, ${padding.top + plotHeight / 2}) rotate(-90)`
+  );
+  yAxisTitle.textContent = options.yLabel || "Density";
+  svg.appendChild(yAxisTitle);
+
   const curvePoints = grid
     .map((p) => `${xFor(p.x)},${yFor(p.density)}`)
     .join(" ");
@@ -132,20 +161,6 @@ function drawDistributionChart(svg, values, options = {}) {
   curve.setAttribute("stroke", "#2f6fb2");
   curve.setAttribute("stroke-width", "2.5");
   svg.appendChild(curve);
-
-  // Rug plot: one tick per real observed value, under the smoothed
-  // curve, so the underlying data isn't hidden by the smoothing.
-  values.forEach((v) => {
-    const tick = document.createElementNS(ns, "line");
-    const tx = xFor(v);
-    tick.setAttribute("x1", tx);
-    tick.setAttribute("x2", tx);
-    tick.setAttribute("y1", height - padding.bottom);
-    tick.setAttribute("y2", height - padding.bottom + 5);
-    tick.setAttribute("stroke", "#5b6675");
-    tick.setAttribute("stroke-width", "1");
-    svg.appendChild(tick);
-  });
 
   const crosshair = document.createElementNS(ns, "line");
   crosshair.setAttribute("y1", padding.top);
@@ -304,26 +319,35 @@ function drawDistributionChart(svg, values, options = {}) {
   });
 }
 
-// The 4 crop names are confirmed (docs/04); the bioclimatic index
-// values/thresholds per crop are not - the professor is calculating
-// them and will deliver them to the project. So the crop list itself
-// is shown (real), but the select stays disabled until real index
-// data exists (see index.html's banner-warning note).
+// The 4 crop names are confirmed (docs/04). Values must match the
+// English crop keys used in indices_catalog.json's "crops" field
+// (src/indices_catalog.py's CROP_COLUMNS mapping).
 const CULTURAS = ["Grapevine", "Olive", "Almond", "Cherry"];
 
 // Mirrors config/climate.toml's [future] section (periods/scenarios).
-const FUTURE_PERIODS = ["2011-2040", "2041-2070", "2071-2100"];
+// Only "historical" and "2041-2070" are actually covered by the
+// professor's ensemble1 delivery today (see docs/04 Section 2.1) -
+// the other periods are shown so the UI is ready for future
+// deliveries, and simply report "not delivered yet" until then.
+const FUTURE_PERIODS = ["2041-2070", "2071-2100"];
 const FUTURE_SCENARIOS = [
   { value: "ssp126", label: "SSP1-2.6 (moderate)" },
   { value: "ssp585", label: "SSP5-8.5 (severe)" },
 ];
-const PILOT_VARIABLE = "tas";
+
+const SELECT_CROP_PROMPT = "Select a Crop, Index, Period and SSP above to view zone data.";
 
 let map = null;
 let zonesLayer = null;
+let indexOverlayGroup = null;
 let currentLegend = null;
 let zoneFeaturesBySlug = {};
 let selectedZoneSlug = null;
+
+let indicesCatalog = null; // /api/indices response, kept in memory
+let currentIndexCode = null;
+let currentIndexData = null; // last successful /api/pilot/zones/index/... response
+let currentEpochLabel = null; // human-readable label for the active period/SSP
 
 function initMap() {
   map = L.map("map");
@@ -332,28 +356,37 @@ function initMap() {
     maxZoom: 18,
     attribution: "© OpenStreetMap contributors",
   }).addTo(map);
+
+  indexOverlayGroup = L.layerGroup().addTo(map);
 }
 
-function buildZonesLegend(min, max) {
+// One shared gradient bar (global_min -> global_max), not a per-zone
+// legend, per the confirmed decision to use a single color scale
+// across all 5 zones.
+function buildIndexLegend(min, max, title) {
   const legend = L.control({ position: "bottomright" });
 
   legend.onAdd = () => {
     const div = L.DomUtil.create("div", "info-legend");
-    const steps = 5;
+    const [r0, g0, b0] = colorForValue(min, min, max);
+    const [r1, g1, b1] = colorForValue((min + max) / 2, min, max);
+    const [r2, g2, b2] = colorForValue(max, min, max);
+    const gradient =
+      `linear-gradient(to right, rgb(${r0},${g0},${b0}), ` +
+      `rgb(${r1},${g1},${b1}), rgb(${r2},${g2},${b2}))`;
 
-    let html =
-      '<div id="legend"><strong>Mean annual temp. (°C)</strong><br>';
-
-    for (let i = 0; i < steps; i += 1) {
-      const value = min + ((max - min) * i) / (steps - 1);
-      const color = temperatureToColor(value, min, max);
-      html += `<span class="swatch" style="background:${color}"></span>${value.toFixed(1)}<br>`;
-    }
-
-    html +=
-      '<span class="swatch" style="background:#c7ccd3"></span>' +
-      "pending data</div>";
-    div.innerHTML = html;
+    div.innerHTML = `
+      <div id="legend">
+        <strong>${title}</strong>
+        <div id="legend-gradient-bar" style="background:${gradient}"></div>
+        <div id="legend-gradient-labels">
+          <span>${min.toFixed(1)}</span>
+          <span>${max.toFixed(1)}</span>
+        </div>
+        <div id="legend-caption">
+          ~1km resolution, smoothed rendering
+        </div>
+      </div>`;
 
     return div;
   };
@@ -361,32 +394,29 @@ function buildZonesLegend(min, max) {
   return legend;
 }
 
-function zoneStyle(feature, min, max) {
-  if (!feature.properties.built) {
-    return {
-      fillColor: "#c7ccd3",
-      fillOpacity: 0.4,
-      weight: 1.5,
-      color: "#9aa3af",
-      dashArray: "4 3",
-    };
-  }
-
+function pendingZoneStyle() {
   return {
-    fillColor: temperatureToColor(
-      feature.properties.annual_mean_celsius,
-      min,
-      max
-    ),
-    fillOpacity: 0.75,
+    fillColor: "#c7ccd3",
+    fillOpacity: 0.4,
+    weight: 1.5,
+    color: "#9aa3af",
+    dashArray: "4 3",
+  };
+}
+
+function activeZoneStyle() {
+  // The raster heatmap overlay (L.imageOverlay) provides the actual
+  // color; the polygon here only supplies the boundary stroke and
+  // the click hit-area.
+  return {
+    fillColor: "#000000",
+    fillOpacity: 0,
     weight: 1.5,
     color: "#3a4250",
   };
 }
 
 async function loadZones() {
-  const subtitle = document.getElementById("banner-subtitle");
-
   let featureCollection;
   try {
     const response = await fetch("/api/pilot/zones");
@@ -395,7 +425,7 @@ async function loadZones() {
     }
     featureCollection = await response.json();
   } catch (err) {
-    subtitle.innerHTML =
+    document.getElementById("banner-subtitle").innerHTML =
       "No zone has been built yet. Run " +
       "<code>python -m scripts.build_zone_overview</code> locally " +
       "and restart the API.";
@@ -403,7 +433,7 @@ async function loadZones() {
   }
 
   if (!featureCollection.features || featureCollection.features.length === 0) {
-    subtitle.innerHTML =
+    document.getElementById("banner-subtitle").innerHTML =
       "No zone has been built yet. Run " +
       "<code>python -m scripts.build_zone_overview</code> locally " +
       "and restart the API.";
@@ -415,149 +445,355 @@ async function loadZones() {
     zoneFeaturesBySlug[feature.properties.slug] = feature;
   });
 
-  const builtValues = featureCollection.features
-    .filter((feature) => feature.properties.built)
-    .map((feature) => feature.properties.annual_mean_celsius);
-
-  const min = builtValues.length ? Math.min(...builtValues) : 0;
-  const max = builtValues.length ? Math.max(...builtValues) : 1;
-
-  if (zonesLayer) {
-    map.removeLayer(zonesLayer);
-  }
-  if (currentLegend) {
-    map.removeControl(currentLegend);
-  }
-
   zonesLayer = L.geoJSON(featureCollection, {
-    style: (feature) => zoneStyle(feature, min, max),
+    style: pendingZoneStyle,
     onEachFeature: (feature, layer) => {
-      const label = feature.properties.built
-        ? `${feature.properties.label}: ` +
-          `${feature.properties.annual_mean_celsius.toFixed(2)} °C`
-        : `${feature.properties.label} (pending data)`;
-      layer.bindTooltip(label);
-      layer.on("click", () => selectZone(feature.properties.slug));
+      layer.bindTooltip(feature.properties.label);
+      layer.on("click", (event) => onZoneClick(feature.properties.slug, event.latlng));
     },
   }).addTo(map);
 
   map.fitBounds(zonesLayer.getBounds(), { padding: [16, 16] });
-
-  if (builtValues.length) {
-    currentLegend = buildZonesLegend(min, max);
-    currentLegend.addTo(map);
-  }
-
-  subtitle.textContent =
-    "Click a zone on the map to see its value distribution.";
 }
 
-function showDistribution(values, unit, caption) {
-  document.getElementById("panel-distribution-caption").textContent =
-    caption;
+function showBannerWarning(message) {
+  const el = document.getElementById("banner-warning");
+  el.textContent = message;
+  el.hidden = false;
+}
+
+function hideBannerWarning() {
+  document.getElementById("banner-warning").hidden = true;
+}
+
+function clearIndexView(message) {
+  currentIndexData = null;
+  indexOverlayGroup.clearLayers();
+
+  if (zonesLayer) {
+    zonesLayer.setStyle(pendingZoneStyle);
+  }
+  if (currentLegend) {
+    map.removeControl(currentLegend);
+    currentLegend = null;
+  }
+
+  document.getElementById("banner-subtitle").textContent = SELECT_CROP_PROMPT;
+
+  if (message) {
+    showBannerWarning(message);
+  } else {
+    hideBannerWarning();
+  }
+
+  renderZonePanel();
+}
+
+// Paints one zone's pixel grid onto a canvas and returns a data URL,
+// using the shared global min/max so colors are comparable across
+// all 5 zones. Null cells (outside the zone polygon, or nodata) stay
+// fully transparent.
+function renderZoneCanvasDataUrl(zoneGrid, globalMin, globalMax) {
+  const canvas = document.createElement("canvas");
+  canvas.width = zoneGrid.width;
+  canvas.height = zoneGrid.height;
+  const ctx = canvas.getContext("2d");
+  const imageData = ctx.createImageData(zoneGrid.width, zoneGrid.height);
+
+  let offset = 0;
+  for (let row = 0; row < zoneGrid.height; row += 1) {
+    const rowValues = zoneGrid.values[row];
+    for (let col = 0; col < zoneGrid.width; col += 1) {
+      const value = rowValues[col];
+      if (value === null) {
+        imageData.data[offset + 3] = 0;
+      } else {
+        const [r, g, b] = colorForValue(value, globalMin, globalMax);
+        imageData.data[offset] = r;
+        imageData.data[offset + 1] = g;
+        imageData.data[offset + 2] = b;
+        imageData.data[offset + 3] = 235;
+      }
+      offset += 4;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL();
+}
+
+function renderIndexZones(data, legendTitle) {
+  indexOverlayGroup.clearLayers();
+
+  data.zones.forEach((zoneGrid) => {
+    const dataUrl = renderZoneCanvasDataUrl(
+      zoneGrid, data.global_min, data.global_max
+    );
+    const bounds = L.latLngBounds(
+      [zoneGrid.bounds.south, zoneGrid.bounds.west],
+      [zoneGrid.bounds.north, zoneGrid.bounds.east]
+    );
+    L.imageOverlay(dataUrl, bounds, { opacity: 0.85 }).addTo(indexOverlayGroup);
+  });
+
+  if (zonesLayer) {
+    zonesLayer.setStyle(activeZoneStyle);
+  }
+
+  if (currentLegend) {
+    map.removeControl(currentLegend);
+  }
+  currentLegend = buildIndexLegend(data.global_min, data.global_max, legendTitle);
+  currentLegend.addTo(map);
+
+  hideBannerWarning();
+  document.getElementById("banner-subtitle").textContent =
+    "Click a zone for its value distribution, or click a point on the map for its exact value.";
+}
+
+function showDistribution(values, caption) {
+  document.getElementById("panel-distribution-caption").textContent = caption;
   document.getElementById("panel-distribution-wrapper").hidden = false;
   drawDistributionChart(
     document.getElementById("panel-distribution-chart"),
     values,
-    { unit: ` ${unit}` }
+    { unit: "" }
   );
 }
 
-async function selectZone(slug) {
-  selectedZoneSlug = slug;
-  const feature = zoneFeaturesBySlug[slug];
+// Redraws the side panel for the currently selected zone (if any),
+// using currentIndexData - called both on zone click and whenever
+// the active index data changes (so an open panel stays in sync).
+function renderZonePanel() {
+  const feature = selectedZoneSlug ? zoneFeaturesBySlug[selectedZoneSlug] : null;
+
   if (!feature) {
+    document.getElementById("panel-empty").hidden = false;
+    document.getElementById("panel-content").hidden = true;
     return;
   }
 
   document.getElementById("panel-empty").hidden = true;
   document.getElementById("panel-content").hidden = false;
-  document.getElementById("panel-name").textContent =
-    feature.properties.label;
+  document.getElementById("panel-name").textContent = feature.properties.label;
 
   const annualEl = document.getElementById("panel-annual");
   const pendingEl = document.getElementById("panel-pending");
   const distWrapper = document.getElementById("panel-distribution-wrapper");
 
-  if (!feature.properties.built) {
+  const zoneGrid = currentIndexData
+    ? currentIndexData.zones.find((z) => z.slug === selectedZoneSlug)
+    : null;
+
+  if (!zoneGrid) {
     annualEl.textContent = "";
     pendingEl.hidden = false;
+    pendingEl.textContent = SELECT_CROP_PROMPT;
     distWrapper.hidden = true;
     return;
   }
 
   pendingEl.hidden = true;
+  annualEl.textContent =
+    `Mean: ${zoneGrid.mean} · Min: ${zoneGrid.min} · Max: ${zoneGrid.max} ` +
+    `(${currentEpochLabel})`;
 
-  const period = document.getElementById("period-select").value;
+  const values = [];
+  zoneGrid.values.forEach((row) => {
+    row.forEach((v) => {
+      if (v !== null) {
+        values.push(v);
+      }
+    });
+  });
 
-  if (period === "historical") {
-    annualEl.textContent =
-      "Mean annual temperature (historical 1981-2010): " +
-      `${feature.properties.annual_mean_celsius.toFixed(2)} °C`;
+  showDistribution(
+    values,
+    `Distribution of ${currentIndexCode} across all pixels in the zone (${currentEpochLabel})`
+  );
+}
 
-    const values = feature.properties.municipality_values.map(
-      (m) => m.annual_mean_celsius
-    );
-    showDistribution(
-      values,
-      "°C",
-      "Distribution of mean annual temperature by municipality in " +
-      "the zone (provisional — pending confirmation with the professor)"
-    );
+async function onZoneClick(slug, latlng) {
+  selectedZoneSlug = slug;
+  renderZonePanel();
+
+  if (!currentIndexCode || !currentIndexData) {
     return;
   }
 
-  const scenario = document.getElementById("ssp-select").value;
-
-  if (!scenario) {
-    annualEl.textContent = "Select an SSP scenario.";
-    distWrapper.hidden = true;
+  const epochPath = getEpochPath();
+  if (epochPath === null) {
     return;
   }
-
-  annualEl.textContent = "loading future data...";
-  distWrapper.hidden = true;
 
   try {
     const response = await fetch(
-      `/api/pilot/${slug}/future/${PILOT_VARIABLE}/${scenario}/${period}`
+      `/api/pilot/${slug}/index/${currentIndexCode}${epochPath}/point` +
+      `?lat=${latlng.lat}&lon=${latlng.lng}`
     );
+    if (!response.ok) {
+      return;
+    }
+    const point = await response.json();
+    L.popup()
+      .setLatLng(latlng)
+      .setContent(`<strong>${currentIndexCode}</strong>: ${point.value}`)
+      .openOn(map);
+  } catch (err) {
+    // Point-query is a convenience on top of the heatmap; silently
+    // skip the popup if it fails rather than interrupting the click.
+  }
+}
+
+// Returns "" for historical, or "/{scenario}/{period}" for a future
+// slice - null if the current period/SSP selection is incomplete.
+function getEpochPath() {
+  const period = document.getElementById("period-select").value;
+
+  if (period === "historical") {
+    return "";
+  }
+
+  const scenario = document.getElementById("ssp-select").value;
+  if (!scenario) {
+    return null;
+  }
+
+  return `/${scenario}/${period}`;
+}
+
+function getEpochLabel() {
+  const period = document.getElementById("period-select").value;
+
+  if (period === "historical") {
+    return "Historical (1981-2010)";
+  }
+
+  const scenario = document.getElementById("ssp-select").value;
+  const scenarioMeta = FUTURE_SCENARIOS.find((s) => s.value === scenario);
+  return `${scenarioMeta ? scenarioMeta.label : scenario} · ${period}`;
+}
+
+function showFormulaBox(entry) {
+  document.getElementById("index-formula-name").textContent =
+    `${entry.category} — ${entry.name}`;
+  document.getElementById("index-formula-value").textContent =
+    `Formula: ${entry.formula}`;
+  document.getElementById("index-formula-reference").textContent =
+    entry.reference && entry.reference !== "—"
+      ? `Reference: ${entry.reference}`
+      : "";
+  document.getElementById("index-formula-box").hidden = false;
+}
+
+function hideFormulaBox() {
+  document.getElementById("index-formula-box").hidden = true;
+}
+
+async function updateIndexView() {
+  const indexSelect = document.getElementById("indice-select");
+  currentIndexCode = indexSelect.value || null;
+
+  if (!currentIndexCode) {
+    hideFormulaBox();
+    clearIndexView(null);
+    return;
+  }
+
+  showFormulaBox(indicesCatalog.indices[currentIndexCode]);
+
+  const epochPath = getEpochPath();
+  if (epochPath === null) {
+    clearIndexView(null);
+    document.getElementById("banner-subtitle").textContent =
+      "Select an SSP scenario.";
+    return;
+  }
+
+  currentEpochLabel = getEpochLabel();
+
+  let response;
+  try {
+    response = await fetch(
+      `/api/pilot/zones/index/${currentIndexCode}${epochPath}`
+    );
+  } catch (err) {
+    clearIndexView("Could not reach the API to load index data.");
+    return;
+  }
+
+  if (!response.ok) {
+    const detail = await response.text();
+    let message = `Not delivered yet for ${currentIndexCode} (${currentEpochLabel}).`;
+    try {
+      message = JSON.parse(detail).detail || message;
+    } catch (err) {
+      // Keep the default message if the body wasn't JSON.
+    }
+    clearIndexView(message);
+    return;
+  }
+
+  currentIndexData = await response.json();
+
+  const entry = indicesCatalog.indices[currentIndexCode];
+  renderIndexZones(
+    currentIndexData,
+    `${currentIndexCode} — ${entry.name} (${currentEpochLabel})`
+  );
+  renderZonePanel();
+}
+
+function populateIndexSelect(crop) {
+  const indexSelect = document.getElementById("indice-select");
+  indexSelect.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "select an index";
+  indexSelect.appendChild(placeholder);
+
+  Object.entries(indicesCatalog.indices)
+    .filter(([, entry]) => entry.crops.includes(crop))
+    .sort(([codeA], [codeB]) => codeA.localeCompare(codeB))
+    .forEach(([code, entry]) => {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = `${code} - ${entry.name}`;
+      indexSelect.appendChild(option);
+    });
+
+  indexSelect.disabled = false;
+}
+
+async function loadIndicesCatalog() {
+  try {
+    const response = await fetch("/api/indices");
     if (!response.ok) {
       throw new Error(await response.text());
     }
-    const futureFeatureCollection = await response.json();
-    const values = futureFeatureCollection.features.map(
-      (f) => f.properties.annual_ensemble_mean
-    );
-
-    if (values.length === 0) {
-      throw new Error("empty future feature collection");
-    }
-
-    const mean = values.reduce((a, b) => a + b, 0) / values.length;
-
-    annualEl.textContent =
-      `Mean annual temperature (${scenario.toUpperCase()} · ${period}): ` +
-      `${mean.toFixed(2)} °C`;
-
-    showDistribution(
-      values,
-      "°C",
-      "Distribution of mean annual temperature (ensemble) by " +
-      "municipality in the zone (provisional — pending confirmation " +
-      "with the professor)"
-    );
+    indicesCatalog = await response.json();
   } catch (err) {
-    annualEl.textContent =
-      "No future data found for this zone. Run " +
-      "python -m scripts.build_future_pilot_data locally and " +
-      "restart the API.";
-    distWrapper.hidden = true;
+    showBannerWarning(
+      "Indices catalog not found. Run 'python -m scripts.build_indices_catalog' " +
+      "locally, then restart the API."
+    );
+    document.getElementById("banner-subtitle").textContent = SELECT_CROP_PROMPT;
+    return;
   }
+
+  document.getElementById("cultura-select").disabled = false;
+  document.getElementById("banner-subtitle").textContent = SELECT_CROP_PROMPT;
 }
 
 function setupFilters() {
   const culturaSelect = document.getElementById("cultura-select");
+  culturaSelect.innerHTML = "";
+  const cropPlaceholder = document.createElement("option");
+  cropPlaceholder.value = "";
+  cropPlaceholder.textContent = "select a crop";
+  culturaSelect.appendChild(cropPlaceholder);
+
   CULTURAS.forEach((cultura) => {
     const option = document.createElement("option");
     option.value = cultura.toLowerCase();
@@ -572,6 +808,7 @@ function setupFilters() {
     option.textContent = `Future · ${period}`;
     periodSelect.appendChild(option);
   });
+  periodSelect.disabled = false;
 
   const sspSelect = document.getElementById("ssp-select");
 
@@ -598,23 +835,36 @@ function setupFilters() {
 
   populateSsp();
 
-  const refreshSelectedZone = () => {
-    if (selectedZoneSlug) {
-      selectZone(selectedZoneSlug);
+  culturaSelect.addEventListener("change", () => {
+    const indexSelect = document.getElementById("indice-select");
+
+    if (!culturaSelect.value) {
+      indexSelect.innerHTML = '<option value="">select a crop</option>';
+      indexSelect.disabled = true;
+      updateIndexView();
+      return;
     }
-  };
+
+    populateIndexSelect(culturaSelect.value);
+    updateIndexView();
+  });
+
+  document
+    .getElementById("indice-select")
+    .addEventListener("change", updateIndexView);
 
   periodSelect.addEventListener("change", () => {
     populateSsp();
-    refreshSelectedZone();
+    updateIndexView();
   });
-  sspSelect.addEventListener("change", refreshSelectedZone);
+  sspSelect.addEventListener("change", updateIndexView);
 }
 
 async function init() {
   initMap();
   setupFilters();
   await loadZones();
+  await loadIndicesCatalog();
 }
 
 init();

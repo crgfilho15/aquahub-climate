@@ -1,0 +1,1443 @@
+{
+  "language": "pt",
+  "source": "data\\raw\\ensemble1\\indices_por_cultura.csv",
+  "generated_at": "2026-09-23T14:00:45.121696+00:00",
+  "indices": {
+    "TMIN17": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias de frio severo",
+      "formula": "Nº de dias com Tn ≤ −17 °C",
+      "reference": "Limiar de morte invernal da videira; Huglin & Schneider (1998)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond"
+      ]
+    },
+    "TMAX30": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias quentes",
+      "formula": "Nº de dias com Tx ≥ 30 °C",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "TMAX35": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias muito quentes",
+      "formula": "Nº de dias com Tx ≥ 35 °C",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "TMAX40": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias extremamente quentes",
+      "formula": "Nº de dias com Tx ≥ 40 °C",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "HD35": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias muito quentes (igual a TMAX35)",
+      "formula": "Nº de dias com Tx ≥ 35 °C",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "HD40": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias extremamente quentes (igual a TMAX40)",
+      "formula": "Nº de dias com Tx ≥ 40 °C",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "FD": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias de geada",
+      "formula": "Nº de dias com Tn < 0 °C",
+      "reference": "ETCCDI (Karl et al. 1999)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "TR": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Noites tropicais",
+      "formula": "Nº de dias com Tn > 20 °C",
+      "reference": "ETCCDI",
+      "crops": [
+        "grapevine",
+        "olive"
+      ]
+    },
+    "TXx": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dia mais quente",
+      "formula": "max(Tx) no ano",
+      "reference": "ETCCDI",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "TNn": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Noite mais fria",
+      "formula": "min(Tn) no ano",
+      "reference": "ETCCDI",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "TX90p": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias quentes acima do percentil 90",
+      "formula": "Nº de dias com Tx > P90, sendo P90 o percentil 90 de Tx do próprio ano",
+      "reference": "ETCCDI — ver ressalva C1",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "TN10p": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Noites frias abaixo do percentil 10",
+      "formula": "Nº de dias com Tn < P10, sendo P10 o percentil 10 de Tn do próprio ano",
+      "reference": "ETCCDI — ver ressalva C1",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "WSDI": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Duração de períodos quentes",
+      "formula": "Total de dias em sequências de ≥ 6 dias consecutivos com Tx > P90",
+      "reference": "ETCCDI — ver ressalva C1",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "DTR_ANNUAL": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Amplitude térmica diária média",
+      "formula": "média(Tx − Tn) no ano",
+      "reference": "ETCCDI",
+      "crops": [
+        "grapevine",
+        "cherry"
+      ]
+    },
+    "DTR_AS": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Amplitude térmica no fim do verão",
+      "formula": "média(Tx − Tn) em agosto–setembro",
+      "reference": "Amplitude térmica no período de maturação",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "TMIN_JJA": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Temperatura noturna média no verão",
+      "formula": "média(Tn) em junho–agosto",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "cherry"
+      ]
+    },
+    "TMIN_MAM": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Noite mais fria da primavera",
+      "formula": "min(Tn) em março–maio",
+      "reference": "Severidade da geada primaveril",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "WINTER_TMEAN": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Temperatura média de inverno",
+      "formula": "média(T) em dezembro, janeiro e fevereiro",
+      "reference": "—",
+      "crops": [
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "WARM_WINTER_DAYS": {
+      "category": "Limiares e extremos de temperatura",
+      "name": "Dias quentes de inverno",
+      "formula": "Nº de dias de DJF com T > 12.5 °C",
+      "reference": "Indicador de perturbação da dormência",
+      "crops": [
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "GDD0": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia de crescimento, base 0 °C",
+      "formula": "Σ max(T, 0)",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "GDD5": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia de crescimento, base 5 °C",
+      "formula": "Σ max(T − 5, 0)",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "GDD7": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia de crescimento, base 7 °C",
+      "formula": "Σ max(T − 7, 0)",
+      "reference": "—",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "GDD10_ANNUAL": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia de crescimento, base 10 °C",
+      "formula": "Σ max(T − 10, 0)",
+      "reference": "Winkler et al. (1974)",
+      "crops": [
+        "grapevine",
+        "olive"
+      ]
+    },
+    "GDD10": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia do período vegetativo, base 10 °C",
+      "formula": "Σ (T − 10) para dias com T ≥ 10, abril–outubro",
+      "reference": "Índice de Winkler",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "BEDD": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia biologicamente eficazes",
+      "formula": "Σ min(max(T − 10, 0), 9)",
+      "reference": "Gladstones (1992) — ver ressalva C6",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "GDH": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-hora de crescimento",
+      "formula": "Σ horária de máx(mín(Th, 36) − 4, 0), com Th da curva de Linvill",
+      "reference": "Anderson et al. (1986) — ver ressalva C4",
+      "crops": [
+        "grapevine",
+        "almond",
+        "cherry"
+      ]
+    },
+    "KDD30": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia de stress acima de 30 °C",
+      "formula": "Σ max(Tx − 30, 0)",
+      "reference": "Dose de stress térmico; Butler & Huybers (2013)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "KDD35": {
+      "category": "Acumulação de graus-dia",
+      "name": "Graus-dia de stress acima de 35 °C",
+      "formula": "Σ max(Tx − 35, 0)",
+      "reference": "Dose de stress térmico",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "GSL": {
+      "category": "Acumulação de graus-dia",
+      "name": "Duração do período vegetativo (simples)",
+      "formula": "Nº de dias com T > 5 °C",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "GSP": {
+      "category": "Acumulação de graus-dia",
+      "name": "Precipitação do período vegetativo",
+      "formula": "Σ P nos dias com T > 5 °C",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "GST": {
+      "category": "Acumulação de graus-dia",
+      "name": "Temperatura do período vegetativo",
+      "formula": "média(T) nos dias com T > 5 °C",
+      "reference": "Ver ressalva C7",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "FP": {
+      "category": "Acumulação de graus-dia",
+      "name": "Dias acima de 10 °C (anual)",
+      "formula": "Nº de dias com T ≥ 10 °C",
+      "reference": "Período de crescimento ativo",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "FP2": {
+      "category": "Acumulação de graus-dia",
+      "name": "Dias acima de 10 °C (estação)",
+      "formula": "Nº de dias com T ≥ 10 °C, abril–outubro",
+      "reference": "Período de crescimento ativo",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "TMED_FP": {
+      "category": "Acumulação de graus-dia",
+      "name": "Temperatura média do período vegetativo",
+      "formula": "média das temperaturas médias mensais de abril–outubro",
+      "reference": "Jones (2006), temperatura do período vegetativo",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "HUGLIN": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Índice heliotérmico de Huglin",
+      "formula": "Σ [((T − 10) + (Tx − 10)) / 2] para dias com T ≥ 10, abril–outubro, coeficiente de duração do dia k = 1",
+      "reference": "Huglin (1978) — ver ressalva C6; use HUGLIN_K para a forma padrão",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "HUGLIN_K": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Índice de Huglin com correção de duração do dia",
+      "formula": "Σ [((T − 10) + (Tx − 10)) / 2] · k(lat) nos dias com T ≥ 10, abril–setembro; k = 1,02 (≤40°) a 1,06 (>46°)",
+      "reference": "Huglin (1978) — definição padrão",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "CI": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Índice de frescura das noites",
+      "formula": "média da Tn diária em setembro",
+      "reference": "Tonietto & Carbonneau (2004)",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "DI": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Índice de secura (balanço hídrico de Riou)",
+      "formula": "W = W₀ + P − Tv − Es acumulado mensalmente abril–setembro; W₀ = 200 mm, Tv = ETP·k, Es = (ETP/nd)(1−k)·JPm, k = 0.1 (Apr), 0.3 (maio), 0.5 (Jun–Sep); ETP por Thornthwaite; limitado a [−200, 200]",
+      "reference": "Riou et al. (1994); Tonietto & Carbonneau (2004) — ver ressalva C8",
+      "crops": [
+        "grapevine",
+        "olive"
+      ]
+    },
+    "BRANAS": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Índice hidrotérmico de Branas",
+      "formula": "Σ (T · P), abril–agosto",
+      "reference": "Branas et al. (1946); pressão de míldio",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "HELIO": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Produto heliotérmico",
+      "formula": "Σ (T − 10) nos dias com T ≥ 10 ao longo do ano, × 10⁻⁶",
+      "reference": "Ver ressalva C5 — numericamente igual a GDD10_ANNUAL × 10⁻⁶",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "SELIANINOV": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Coeficiente hidrotérmico de Selyaninov",
+      "formula": "10 · PREC_FP / GDD10",
+      "reference": "Selyaninov (1928) — ver ressalva C9",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "LTI": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Índice latitude-temperatura",
+      "formula": "T média diária máxima do ano × (75 − latitude)",
+      "reference": "Jackson & Cherry (1988) — ver ressalva C10",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "LTI_WM": {
+      "category": "Índices compostos vitícolas e agroclimáticos",
+      "name": "Índice latitude-temperatura, mês mais quente",
+      "formula": "T média do mês mais quente × (75 − latitude)",
+      "reference": "Jackson & Cherry (1988) — mais próximo da forma publicada",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "CHILL_HOURS": {
+      "category": "Frio invernal (dormência)",
+      "name": "Horas de frio",
+      "formula": "Nº de horas com 0 °C ≤ Th ≤ 7.2 °C, outubro–fevereiro",
+      "reference": "Weinberger (1950) — ver ressalva C3",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "CHILL_PORTIONS": {
+      "category": "Frio invernal (dormência)",
+      "name": "Porções de frio (modelo dinâmico)",
+      "formula": "Modelo termodinâmico de dois passos de Fishman et al.; o precursor acumula-se hora a hora e converte-se numa porção quando ultrapassa 1",
+      "reference": "Fishman et al. (1987a,b); Erez et al. (1990) — ver ressalvas C2 e C3",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "CU_UTAH": {
+      "category": "Frio invernal (dormência)",
+      "name": "Unidades de frio de Utah",
+      "formula": "Σ dos pesos horários: 0 (Th≤1,4), 0,5 (1,4–2,4), 1,0 (2,4–9,1), 0,5 (9,1–12,4), 0 (12,4–15,9), −0,5 (15,9–18,0), −1,0 (>18,0)",
+      "reference": "Richardson et al. (1974)",
+      "crops": [
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "CU_UTAH_NEG": {
+      "category": "Frio invernal (dormência)",
+      "name": "Unidades de Utah negativas",
+      "formula": "Σ apenas dos pesos horários negativos acima",
+      "reference": "Richardson et al. (1974); pressão de anulação do frio",
+      "crops": [
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "ET0_ANNUAL": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Evapotranspiração de referência, anual",
+      "formula": "Σ 0,0023 · Ra · (T + 17,8) · √(Tx − Tn), com Ra a radiação extraterrestre FAO-56 em mm/dia",
+      "reference": "Hargreaves & Samani (1985); Allen et al. (1998)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "ET0_GS": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Evapotranspiração de referência, período vegetativo",
+      "formula": "Como acima, de abril a outubro",
+      "reference": "Hargreaves & Samani (1985)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "ET0_JJA": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Evapotranspiração de referência, verão",
+      "formula": "Como acima, de junho a agosto",
+      "reference": "Hargreaves & Samani (1985)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "WB_ANNUAL": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Balanço hídrico climático, anual",
+      "formula": "P − ET₀ summed no ano",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "WB_GS": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Balanço hídrico climático, período vegetativo",
+      "formula": "P − ET₀, abril–outubro",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "WB_JJA": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Balanço hídrico climático, verão",
+      "formula": "P − ET₀, junho–agosto",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "AI_UNEP": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Índice de aridez",
+      "formula": "P_annual / ET0_ANNUAL",
+      "reference": "UNEP (1992); <0,2 árido, 0,2–0,5 semiárido, 0,5–0,65 sub-húmido seco",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "IDM_DEMARTONNE": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Índice de aridez de De Martonne",
+      "formula": "P_annual / (T_annual + 10)",
+      "reference": "De Martonne (1926)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "IDM_SUMMER": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Índice de De Martonne, forma estival",
+      "formula": "4 · P_JJA / (T_JJA + 10)",
+      "reference": "De Martonne (1926), forma sazonal",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "EMBERGER_Q2": {
+      "category": "Evapotranspiração, balanço hídrico e aridez",
+      "name": "Quociente pluviotérmico de Emberger",
+      "formula": "2000 · P / (M² − m²), com M = Tmax média do mês mais quente e m = Tmin média do mês mais frio, ambas em kelvin",
+      "reference": "Emberger (1930); bioclima mediterrânico",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "PREC_ANNUAL": {
+      "category": "Precipitação",
+      "name": "Precipitação anual",
+      "formula": "Σ P no ano",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "PREC_FP": {
+      "category": "Precipitação",
+      "name": "Precipitação do período vegetativo",
+      "formula": "Σ P, abril–setembro",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "RX1day": {
+      "category": "Precipitação",
+      "name": "Dia mais chuvoso",
+      "formula": "max(P) no ano",
+      "reference": "ETCCDI",
+      "crops": [
+        "cherry"
+      ]
+    },
+    "R10mm": {
+      "category": "Precipitação",
+      "name": "Dias de precipitação forte",
+      "formula": "Nº de dias com P ≥ 10 mm",
+      "reference": "ETCCDI",
+      "crops": [
+        "cherry"
+      ]
+    },
+    "R20mm": {
+      "category": "Precipitação",
+      "name": "Dias de precipitação muito forte",
+      "formula": "Nº de dias com P ≥ 20 mm",
+      "reference": "ETCCDI",
+      "crops": [
+        "cherry"
+      ]
+    },
+    "SDII": {
+      "category": "Precipitação",
+      "name": "Intensidade diária média",
+      "formula": "Σ P nos dias húmidos a dividir pelo nº de dias húmidos, sendo húmido P ≥ 1 mm",
+      "reference": "ETCCDI",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "CDD": {
+      "category": "Precipitação",
+      "name": "Dias secos consecutivos",
+      "formula": "Maior sequência de dias consecutivos com P < 1 mm",
+      "reference": "ETCCDI",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "CWD": {
+      "category": "Precipitação",
+      "name": "Dias húmidos consecutivos",
+      "formula": "Maior sequência de dias consecutivos com P ≥ 1 mm",
+      "reference": "ETCCDI",
+      "crops": [
+        "grapevine",
+        "cherry"
+      ]
+    },
+    "CDD_GS": {
+      "category": "Precipitação",
+      "name": "Dias secos consecutivos, período vegetativo",
+      "formula": "Maior sequência seca em abril–setembro",
+      "reference": "ETCCDI, janela sazonal",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "P30_MIN": {
+      "category": "Precipitação",
+      "name": "Janela de 30 dias mais seca",
+      "formula": "Mínimo do total móvel de 30 dias de precipitação",
+      "reference": "Indicador de intensidade de seca",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "P_DJF": {
+      "category": "Precipitação",
+      "name": "Precipitação de inverno",
+      "formula": "Σ P em dezembro, janeiro, fevereiro",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "P_MAM": {
+      "category": "Precipitação",
+      "name": "Precipitação de primavera",
+      "formula": "Σ P em março–maio",
+      "reference": "—",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "P_JJA": {
+      "category": "Precipitação",
+      "name": "Precipitação de verão",
+      "formula": "Σ P em junho–agosto",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "P_SON": {
+      "category": "Precipitação",
+      "name": "Precipitação de outono",
+      "formula": "Σ P em setembro–novembro",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "P_AS": {
+      "category": "Precipitação",
+      "name": "Precipitação no período de maturação",
+      "formula": "Σ P em agosto–setembro",
+      "reference": "Indicador de chuva à colheita",
+      "crops": [
+        "grapevine",
+        "olive"
+      ]
+    },
+    "WETDAYS_MAM": {
+      "category": "Precipitação",
+      "name": "Dias de chuva na primavera",
+      "formula": "Nº de dias de março-maio com P ≥ 1 mm",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "almond",
+        "cherry"
+      ]
+    },
+    "LAST_FROST": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Última geada de primavera",
+      "formula": "Dia do ano da última ocorrência de Tn < 0 °C antes de 1 de julho",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "FIRST_FROST": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Primeira geada de outono",
+      "formula": "Dia do ano da primeira ocorrência de Tn < 0 °C depois de 1 de julho",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "FROST_FREE": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Período livre de geada",
+      "formula": "FIRST_FROST − LAST_FROST",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "LAST_FROST_M2": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Última geada danosa de primavera",
+      "formula": "Dia do ano da última ocorrência de Tn < −2 °C antes de 1 de julho",
+      "reference": "—",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "FD_AFTER_GDD100": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Dias de geada após 100 GDD5",
+      "formula": "Nº de dias de geada (Tn < 0) depois de o acumulado de GDD5 atingir 100, antes de 1 de julho",
+      "reference": "Risco de geada em estados fenológicos iniciais",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "FD_AFTER_GDD200": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Dias de geada após 200 GDD5",
+      "formula": "Como acima, com limiar 200",
+      "reference": "Risco de geada primaveril",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "FD_AFTER_GDD400": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Dias de geada após 400 GDD5",
+      "formula": "Como acima, com limiar 400",
+      "reference": "Risco de geada em estados mais avançados",
+      "crops": [
+        "grapevine",
+        "olive",
+        "cherry"
+      ]
+    },
+    "FD_M2_AFTER_GDD200": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Dias de geada danosa após 200 GDD5",
+      "formula": "Nº de dias com Tn < −2,2 °C depois de o acumulado de GDD5 atingir 200",
+      "reference": "Risco de geada letal",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "FDEG_AFTER_GDD200": {
+      "category": "Datas de geada e risco de geada primaveril",
+      "name": "Graus-dia de geada após 200 GDD5",
+      "formula": "Σ (−Tn) nos dias de geada ocorridos depois de o acumulado de GDD5 atingir 200",
+      "reference": "Severidade acumulada de geada",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "DOY_GDD100": {
+      "category": "Indicadores de fenologia por tempo térmico",
+      "name": "Data de 100 GDD5",
+      "formula": "Primeiro dia do ano com acumulado GDD5 ≥ 100",
+      "reference": "Indicador de fenologia por tempo térmico",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "DOY_GDD200": {
+      "category": "Indicadores de fenologia por tempo térmico",
+      "name": "Data de 200 GDD5",
+      "formula": "Primeiro dia do ano com acumulado GDD5 ≥ 200",
+      "reference": "Indicador de fenologia por tempo térmico",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "DOY_GDD400": {
+      "category": "Indicadores de fenologia por tempo térmico",
+      "name": "Data de 400 GDD5",
+      "formula": "Primeiro dia do ano com acumulado GDD5 ≥ 400",
+      "reference": "Indicador de fenologia por tempo térmico",
+      "crops": [
+        "grapevine",
+        "olive",
+        "cherry"
+      ]
+    },
+    "DOY_GDD800": {
+      "category": "Indicadores de fenologia por tempo térmico",
+      "name": "Data de 800 GDD5",
+      "formula": "Primeiro dia do ano com acumulado GDD5 ≥ 800",
+      "reference": "Indicador de fenologia por tempo térmico",
+      "crops": [
+        "grapevine",
+        "olive"
+      ]
+    },
+    "GSL_ETCCDI": {
+      "category": "Indicadores de fenologia por tempo térmico",
+      "name": "Duração do período vegetativo (ETCCDI)",
+      "formula": "Dias entre a primeira sequência de 6 dias consecutivos com T > 5 °C e, depois de 1 de julho, a primeira sequência de 6 dias consecutivos com T < 5 °C",
+      "reference": "ETCCDI (Zhang et al. 2011)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "HWDI30": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Maior período contínuo acima de 30 °C",
+      "formula": "Maior sequência de dias consecutivos com Tx ≥ 30 °C",
+      "reference": "Duração de onda de calor",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "HWDI35": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Maior período contínuo acima de 35 °C",
+      "formula": "Maior sequência de dias consecutivos com Tx ≥ 35 °C",
+      "reference": "Duração de onda de calor",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "HWN35": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Número de ondas de calor acima de 35 °C",
+      "formula": "Nº de sequências que atingem 3 dias consecutivos com Tx ≥ 35 °C",
+      "reference": "Frequência de ondas de calor",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "HD30_MJ": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Dias quentes na floração",
+      "formula": "Nº de dias de maio-junho com Tx ≥ 30 °C",
+      "reference": "Stress térmico na floração",
+      "crops": [
+        "olive",
+        "cherry"
+      ]
+    },
+    "HD35_MJ": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Dias muito quentes na floração",
+      "formula": "Nº de dias de maio-junho com Tx ≥ 35 °C",
+      "reference": "Stress térmico na floração",
+      "crops": [
+        "olive",
+        "cherry"
+      ]
+    },
+    "HD30_JA": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Dias quentes na maturação",
+      "formula": "Nº de dias de julho-agosto com Tx ≥ 30 °C",
+      "reference": "Stress térmico na maturação",
+      "crops": [
+        "grapevine",
+        "almond"
+      ]
+    },
+    "HD35_JA": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Dias muito quentes na maturação",
+      "formula": "Nº de dias de julho-agosto com Tx ≥ 35 °C",
+      "reference": "Stress térmico na maturação",
+      "crops": [
+        "grapevine",
+        "almond"
+      ]
+    },
+    "HOTDRY30": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Dias simultaneamente quentes e secos (30 °C)",
+      "formula": "Nº de dias de junho a agosto com Tx ≥ 30 °C e precipitação acumulada dos 30 dias anteriores < 20 mm",
+      "reference": "Extremo combinado quente-seco",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "HOTDRY35": {
+      "category": "Stress térmico e ondas de calor",
+      "name": "Dias simultaneamente quentes e secos (35 °C)",
+      "formula": "Como acima, com Tx ≥ 35 °C",
+      "reference": "Extremo combinado quente-seco",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "SCAB_DAYS": {
+      "category": "Indicadores de risco de doença e de polinização",
+      "name": "Dias favoráveis ao pedrado",
+      "formula": "Nº de dias de março-maio com P ≥ 0.2 mm e 10 °C ≤ T ≤ 24 °C",
+      "reference": "Critério de humectação/temperatura tipo Mills",
+      "crops": [
+        "almond",
+        "cherry"
+      ]
+    },
+    "DM_DAYS": {
+      "category": "Indicadores de risco de doença e de polinização",
+      "name": "Dias favoráveis ao míldio",
+      "formula": "Nº de dias de março-junho com P ≥ 10 mm e T ≥ 10 °C",
+      "reference": "\"3–10–10\" rule of thumb",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "ROT_DAYS": {
+      "category": "Indicadores de risco de doença e de polinização",
+      "name": "Dias favoráveis à podridão do cacho",
+      "formula": "Nº de dias de agosto-setembro com P ≥ 5 mm e 15 °C ≤ T ≤ 25 °C",
+      "reference": "Tempo favorável a Botrytis",
+      "crops": [
+        "grapevine",
+        "cherry"
+      ]
+    },
+    "PM_DAYS": {
+      "category": "Indicadores de risco de doença e de polinização",
+      "name": "Dias favoráveis ao oídio",
+      "formula": "Nº de dias de abril a agosto com pelo menos 6 horas consecutivas entre 21 °C e 30 °C",
+      "reference": "Intervalo ótimo de temperatura para Erysiphe necator",
+      "crops": [
+        "grapevine"
+      ]
+    },
+    "POLL_FM": {
+      "category": "Indicadores de risco de doença e de polinização",
+      "name": "Tempo favorável à polinização, fim de inverno",
+      "formula": "Nº de dias de fevereiro-março com Tx > 15 °C e P < 1 mm",
+      "reference": "Janela de atividade dos polinizadores",
+      "crops": [
+        "almond"
+      ]
+    },
+    "POLL_MAM": {
+      "category": "Indicadores de risco de doença e de polinização",
+      "name": "Tempo favorável à polinização, primavera",
+      "formula": "Nº de dias de março-maio com Tx > 15 °C e P < 1 mm",
+      "reference": "Janela de atividade dos polinizadores",
+      "crops": [
+        "olive",
+        "cherry"
+      ]
+    },
+    "BIO1": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Temperatura média anual",
+      "formula": "média das 12 temperaturas médias mensais",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO2": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Amplitude térmica diária média",
+      "formula": "média, entre meses, de (Tx máxima mensal − Tn mínima mensal)",
+      "reference": "Ver ressalva C11",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO3": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Isotermalidade",
+      "formula": "100 · BIO2 / BIO7",
+      "reference": "Ver ressalva C11",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO4": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Sazonalidade térmica",
+      "formula": "desvio-padrão das 12 temperaturas médias mensais × 100",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO5": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Temperatura máxima do mês mais quente",
+      "formula": "máximo mensal do Tx",
+      "reference": "Ver ressalva C11",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO6": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Temperatura mínima do mês mais frio",
+      "formula": "mínimo mensal do Tn",
+      "reference": "Ver ressalva C11",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO7": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Amplitude térmica anual",
+      "formula": "BIO5 − BIO6",
+      "reference": "Ver ressalva C11",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO8": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Temperatura média do trimestre mais húmido",
+      "formula": "T média do trimestre com maior precipitação",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO9": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Temperatura média do trimestre mais seco",
+      "formula": "T média do trimestre com menor precipitação",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO10": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Temperatura média do trimestre mais quente",
+      "formula": "T média do trimestre mais quente",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO11": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Temperatura média do trimestre mais frio",
+      "formula": "T média do trimestre mais frio",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO12": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Precipitação anual",
+      "formula": "Σ dos 12 totais mensais de precipitação",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO13": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Precipitação do mês mais húmido",
+      "formula": "max dos totais mensais de precipitação",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO14": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Precipitação do mês mais seco",
+      "formula": "min dos totais mensais de precipitação",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO15": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Sazonalidade da precipitação",
+      "formula": "100 · desvio-padrão / média dos totais mensais de precipitação",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO16": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Precipitação do trimestre mais húmido",
+      "formula": "Σ P do trimestre mais húmido",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO17": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Precipitação do trimestre mais seco",
+      "formula": "Σ P do trimestre mais seco",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO18": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Precipitação do trimestre mais quente",
+      "formula": "Σ P do trimestre mais quente",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO19": {
+      "category": "Variáveis bioclimáticas BIO1-BIO19",
+      "name": "Precipitação do trimestre mais frio",
+      "formula": "Σ P do trimestre mais frio",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO2_WC": {
+      "category": "Versões compatíveis com o WorldClim",
+      "name": "Amplitude térmica diária média (forma WorldClim)",
+      "formula": "média, entre meses, de (Tx média mensal − Tn média mensal)",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO3_WC": {
+      "category": "Versões compatíveis com o WorldClim",
+      "name": "Isotermalidade (forma WorldClim)",
+      "formula": "100 · BIO2_WC / BIO7_WC",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO5_WC": {
+      "category": "Versões compatíveis com o WorldClim",
+      "name": "Temperatura máxima do mês mais quente (forma WorldClim)",
+      "formula": "máximo, entre meses, da Tx média mensal",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO6_WC": {
+      "category": "Versões compatíveis com o WorldClim",
+      "name": "Temperatura mínima do mês mais frio (forma WorldClim)",
+      "formula": "mínimo, entre meses, da Tn média mensal",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "BIO7_WC": {
+      "category": "Versões compatíveis com o WorldClim",
+      "name": "Amplitude térmica anual (forma WorldClim)",
+      "formula": "BIO5_WC − BIO6_WC",
+      "reference": "Hijmans et al. (2005)",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "IT_RIVAS": {
+      "category": "Índices de classificação bioclimática",
+      "name": "Índice de termicidade",
+      "formula": "It = (T + M + m) · 10",
+      "reference": "Rivas-Martínez (2004, 2008); ≤210 supramediterrânico, 210–350 mesomediterrânico, 350–450 termomediterrânico",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "IC_CONTINENTALITY": {
+      "category": "Índices de classificação bioclimática",
+      "name": "Índice de continentalidade",
+      "formula": "Ic = máx(T média mensal) − mín(T média mensal)",
+      "reference": "Rivas-Martínez (2004); <11 oceânico, 11–21 subcontinental, >21 continental",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    },
+    "IO_RIVAS": {
+      "category": "Índices de classificação bioclimática",
+      "name": "Índice ombrotérmico",
+      "formula": "Io = 10 · Pp / Tp, nos meses com T média > 0 °C; Pp = Σ P desses meses, Tp = 10 · Σ das suas temperaturas médias",
+      "reference": "Rivas-Martínez (2004) — ver ressalva C12",
+      "crops": [
+        "grapevine",
+        "olive",
+        "almond",
+        "cherry"
+      ]
+    }
+  }
+}
