@@ -138,37 +138,29 @@ aquahub-climate/
 ├── scripts/
 │   ├── build_pilot_region.py
 │   ├── build_zone_overview.py
-│   ├── build_future_climatology.py
-│   ├── build_ensemble_climatology.py
-│   ├── build_anomaly_climatology.py
-│   ├── build_future_pilot_data.py
+│   ├── export_zones_shapefile.py
 │   ├── inspect_gisco_boundaries.py
-│   └── validate_future_acquisition.py
+│   ├── build_indices_catalog.py
+│   └── build_index_pilot_data.py
 │
 ├── src/
-│   ├── bioclimatic_indices.py
 │   ├── boundary_processing.py
-│   ├── climate_acquisition.py
-│   ├── climate_anomalies.py
 │   ├── climate_config.py
-│   ├── climate_ensemble.py
-│   ├── climate_paths.py
 │   ├── climate_pipeline.py
 │   ├── climate_processing.py
-│   ├── climate_region.py
-│   ├── climate_selection.py
-│   ├── future_climate_experiment.py
-│   ├── future_climate_pipeline.py
-│   ├── future_climate_processing.py
-│   ├── future_pilot_export.py
 │   ├── gisco_boundary_processing.py
+│   ├── index_pilot_export.py
+│   ├── indices_catalog.py
 │   ├── pilot_export.py
 │   └── zone_overview_export.py
 │
 ├── web/
 │   ├── index.html
+│   ├── atlas.html
 │   ├── app.js
+│   ├── site.css
 │   ├── style.css
+│   ├── site-chrome.js
 │   └── vendor/leaflet/
 │
 ├── tests/
@@ -176,7 +168,10 @@ aquahub-climate/
 │
 ├── pytest.ini
 ├── README.md
-└── requirements.txt
+├── requirements.txt          (Vercel runtime deps - see the file itself)
+├── requirements-pipeline.txt (local data-pipeline + test deps)
+├── vercel.json                (trims the deployed function bundle)
+└── .vercelignore
 ```
 
 ---
@@ -215,10 +210,14 @@ Activate it:
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install dependencies:
+Install dependencies. `requirements.txt` alone is enough to run the API
+(`uvicorn api.main:app`) - it's deliberately minimal, since it's also
+what Vercel installs for the deployed function (see the file's own
+comments). For local data-pipeline work and the full test suite, also
+install `requirements-pipeline.txt`:
 
 ```powershell
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-pipeline.txt
 ```
 
 ---
@@ -651,11 +650,12 @@ Municipality-level values represent an interaction and summarisation layer, not 
 
 Short-term priorities, given what is done vs. still pending confirmation from the research team (see `docs/04_roadmap_future_and_bioclimatic_indices.md` for the full phase-by-phase roadmap):
 
-1. Confirm the definitive historical and future climate datasets, GCMs and SSP scenarios with the professor (a concrete proposal already exists and is wired into the platform — see `config/climate.toml`).
-2. Receive and ingest the crop-specific bioclimatic indices the professor is calculating and delivering directly (the project's own generic GDD/Winkler Index implementation, `src/bioclimatic_indices.py`, remains available as an independent cross-check).
-3. Implement the whole-region zonal-statistics aggregation needed for real climate data in Castilla y León/Extremadura (their boundaries are already wired up — see `docs/03` Section 7).
-4. Confirm what the interactive platform's distribution chart should actually plot (currently a real but provisional placeholder — see `docs/03` Section 6).
-5. Preserve high-resolution raster outputs for the scientific atlas, once the format/deliverable for that is confirmed with the professor.
+1. Receive and ingest the remaining bioclimatic-index periods (2071-2100) once the professor delivers them — `scripts/build_index_pilot_data.py` already handles this, no new code needed (see `docs/04` Phase 7).
+2. Implement the whole-region zonal-statistics aggregation needed for real climate data in Castilla y León/Extremadura (their boundaries are already wired up — see `docs/03` Section 7).
+3. Translate `data/processed/pilot/indices_catalog.json`'s Portuguese content (index names/formulas/references) to English — deliberately deferred, tracked in `docs/04` Phase 7.
+4. Get the professor's written confirmation on the still-open questions in `docs/02` (e.g. dataset provenance, GCM count) — the platform already runs against his real delivery as a working hypothesis.
+
+**Retired (Sept 2026):** the earlier plan to download and ensemble CHELSA v2.1 future climatologies ourselves (GCM acquisition, ensembling, anomalies, a generic GDD/Winkler cross-check) was removed from the codebase once the professor started delivering pre-computed bioclimatic indices directly (`ensemble1`) — see `docs/04` Section 1.
 
 ---
 
