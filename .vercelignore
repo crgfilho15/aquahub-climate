@@ -1,7 +1,9 @@
-# Keep the deployed function bundle small (Vercel's Python functions
-# have a 500MB unzipped limit - see api/requirements.txt for why the
-# runtime dependency list is trimmed separately from this). None of
-# these are read by api/main.py at request time.
+# Excludes these from the general deployment upload. Note this does
+# NOT trim the Python function's own bundle (Vercel's Python builder
+# re-traces files for that independently) - vercel.json's
+# functions.excludeFiles handles that; see /requirements.txt for the
+# actual fix to the 500MB bundle-size error (the dependency list, not
+# these directories, was the real cause).
 .venv/
 .pytest_cache/
 .claude/
