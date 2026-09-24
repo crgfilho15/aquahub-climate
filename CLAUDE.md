@@ -44,13 +44,30 @@ confirms it in writing, even if it's already wired into code or config.
 
 ## Current platform state
 
-All 5 zones on the map render as "pending" (dashed outline, no data on
-click) **on purpose** — the temperature index was deliberately hidden so
-it isn't mistaken for the professor's real bioclimatic indices, which
-don't exist yet. The temperature pipeline itself still runs and is
-still tested; only the map display was changed. **Don't re-enable
-showing `annual_mean_celsius` on the map without re-reading `docs/04`
-Phase 7 first** — this was an explicit, reasoned decision, not a bug.
+The map's temperature index (`annual_mean_celsius`) stays permanently
+hidden — **don't re-enable it without re-reading `docs/04` Phase 7
+first**, this was an explicit, reasoned decision, not a bug. It has
+been superseded by the professor's real first delivery: 129
+bioclimatic/agroclimatic indices (`data/raw/ensemble1/` +
+`indices_por_cultura.csv`, see `docs/04` Section 2.1), now ingested and
+wired into the Climate Atlas (`docs/04` Phase 7, `docs/03` Section 6).
+
+A zone shows real data — a per-pixel heatmap, not a flat fill — **only
+once the user has selected a Crop, Index, Period and SSP that the
+professor has actually delivered** (today: historical, or ssp126/
+ssp585 @ 2041-2070; 2071-2100 isn't delivered yet — and 2011-2040 was
+dropped from the project's scope entirely, Sept 2026, not just
+undelivered; see `docs/04` Section 2.1/3).
+Anything else — nothing selected, or a combination not yet delivered —
+falls back to the dashed "pending" style with a banner explaining what
+is missing. Never make that fallback show a plausible-looking value
+instead.
+
+The delivered index content (index names, formulas, references in
+`data/processed/pilot/indices_catalog.json`) is kept in the
+professor's original **Portuguese** — translating it to English is a
+deliberate, separate follow-up pass, not done yet (`docs/04` Phase 7).
+The rest of the Atlas's UI chrome (labels, banners) is in English.
 
 ## Testing
 

@@ -17,9 +17,11 @@ Validated and shipped (v1, `docs/03_pilot_interactive_platform.md`):
   currently only fetches the **historical** CHELSA climatology endpoint.
 - `config/climate.toml` already encodes a provisional methodology (historical
   = CHELSA-W5E5 1981–2010; future = CHELSA-climatologies-v2.1-CMIP6 /
-  ISIMIP3b; periods 2011–2040 / 2041–2070 / 2071–2100; scenarios SSP1-2.6 /
+  ISIMIP3b; periods 2041–2070 / 2071–2100; scenarios SSP1-2.6 /
   SSP3-7.0 / SSP5-8.5; ensemble = equal-weight mean with min/max/std
-  uncertainty; GCM list intentionally empty).
+  uncertainty; GCM list intentionally empty). **Update (Sept 2026):**
+  originally 3 periods (2011–2040 / 2041–2070 / 2071–2100) and 3 SSPs
+  (SSP1-2.6/3-7.0/5-8.5) — both trimmed since, see Section 3.
 
 Not yet true, and important to say plainly:
 
@@ -55,7 +57,7 @@ In priority order (blocks the most downstream work first):
 |---|---|---|---|
 | 1 | **Daily vs. monthly future data.** Is the intended future dataset CHELSA-ISIMIP3b (daily, used by MONTEVITIS) or the CHELSA v2.1 future climatologies (monthly)? | Frost days, GDD, chilling hours and most bioclimatic indices need daily data. Building the acquisition layer against the wrong product means rebuilding it. | **Proposal drafted (Sept 2026): monthly.** Recorded in `config/climate.toml` `[future]` (`temporal_resolution = "monthly"`, `dataset = "CHELSA-climatologies-v2.1-CMIP6"`), explicitly marked as pending professor confirmation. Rationale and the frost/chilling trade-off this implies are in Section 3 below. See `docs/02` §4. **Update (Sept 2026): the professor's first real delivery (`data/raw/ensemble1/`) is NEX-GDDP-CMIP6 via `NEX_1km_outputs`, not CHELSA v2.1** — a different dataset than this proposal. Treated as a working hypothesis, not a confirmed change, until the professor confirms in writing. See Section 2.1 below. |
 | 2 | **GCM set.** The 5 GCMs standardised by CHELSA v2.1, or the 9 used by MONTEVITIS (CHELSA-ISIMIP3b)? | Directly tied to decision 1 — these may be different underlying products, not just a longer list. Determines storage/compute scope (~2x). | **Proposal drafted (Sept 2026): the 5 CHELSA v2.1 GCMs** (GFDL-ESM4, IPSL-CM6A-LR, MPI-ESM1-2-HR, MRI-ESM2-0, UKESM1-0-LL), consistent with decision 1. Recorded in `config/climate.toml` `[models].gcms`, pending confirmation. See `docs/02` §7. **Update (Sept 2026): `ensemble1`'s global attrs list only 4 GCMs** (missing MRI-ESM2-0) **and only one future period** (2041-2070, not all 3) — see Section 2.1 for whether this is a deliberate scope or a partial delivery. |
-| 3 | **Confirm SSPs and periods** (SSP1-2.6/3-7.0/5-8.5; 2011–2040/2041–2070/2071–2100) | Already provisional in `climate.toml`; low risk, but should be explicitly signed off before large downloads | Unchanged from the original proposal — still pending sign-off. See `docs/02` §5–6. |
+| 3 | **Confirm SSPs and periods** (SSP1-2.6/3-7.0/5-8.5; 2011–2040/2041–2070/2071–2100) | Already provisional in `climate.toml`; low risk, but should be explicitly signed off before large downloads | SSPs narrowed to 2 (Section 3) and periods narrowed to 2 — **2011-2040 dropped entirely (Sept 2026, user decision)**, not part of the project's scope, see Section 2.1 Q3 and `config/climate.toml`. 2071-2100 still pending sign-off. See `docs/02` §5–6. |
 | 4 | **Bioclimatic index list and thresholds per crop** (vinha, oliveira, amendoeira, cerejeira) | Needed before Phase 7/8 below; requires literature review + agronomist validation, not just a research team's yes/no | **Update (Sept 2026, professor meeting): the professor will calculate the crop-specific indices himself and deliver them to the user** — not something this codebase computes from scratch. Changes Phase 7's shape: from "implement each index's formula" to "ingest and display the professor's delivered values" (format/schema TBD once the user shares what he delivers). Phase 6's generic Tier-1 indices (GDD/Winkler Index, already built) stay useful as an independent cross-check, not a substitute. |
 | 5 | **Scope confirmation:** does the researcher's responsibility include the socioeconomic diagnosis, and which territory (Douro only vs. all four regions) for this stage | Lower engineering impact, but affects prioritisation | Partially resolved in conversation: Douro is the pilot, architecture built to extend afterwards (see Phase 10). Socioeconomic-diagnosis scope: still open. |
 
@@ -152,9 +154,12 @@ file) is at `data/raw/ensemble1/variables_reference.csv`.
   project's own proposal to the professor, not something he'd
   previously confirmed — so this isn't necessarily him overriding a
   decision, it may simply be the set he actually has ensembled.)
-- Only **one future period** is present (`2041-2070`), not the 3 in
-  `config/climate.toml`'s `[future].periods` (2011–2040 / 2041–2070 /
-  2071–2100).
+- Only **one future period** is present (`2041-2070`), not the 3 that
+  were in `config/climate.toml`'s `[future].periods` at the time
+  (2011–2040 / 2041–2070 / 2071–2100). **Update (Sept 2026):**
+  2011–2040 has since been dropped from that list entirely (see the
+  status note after the question table below) — the remaining gap is
+  just 2071-2100.
 - **Open question for the professor, not yet answered:** is `ensemble1`
   a deliberate, final scope (4 models, 1 period, as a first cut) or a
   partial/in-progress delivery with more to come? Don't build ingestion
@@ -180,6 +185,14 @@ inspecting this delivery):
 | 5 | What does the `SELIANINOV` outlier in the historical file (34,349,936 vs. ~70-200 in the future files) indicate — a bug on his side, or a real edge case in the formula? |
 | 6 | What format will future deliveries take — more NetCDF ensembles like this one, per-crop threshold tables, or something else — so the ingestion step (Phase 7) can be designed for the real shape instead of guessed? |
 | 7 | Should this raster-grid ensemble be aggregated to the same per-zone/per-municipality shape the rest of the platform uses (`docs/03` Section 6), or does the professor intend to deliver zone-level summaries himself? |
+
+> **Status note (Sept 2026):** re. Q3 above — the user decided
+> **2011-2040 will not be used**, regardless of what the professor
+> eventually says about it. This isn't "still waiting to see if he
+> delivers it" — it's removed from the project's scope entirely:
+> dropped from `config/climate.toml`'s `[future].periods`, the Climate
+> Atlas's Period selector (`web/app.js`), and the Section 3 proposal
+> below. 2071-2100 remains open per Q3, unaffected by this decision.
 
 **Deliberately not done yet:** no parser or ingestion code for
 `ensemble1` — this section only records what was found by read-only
@@ -207,7 +220,7 @@ middle scenario.
 - It is the official, already-downscaled-to-1km CHELSA product, from the
   same group and methodology as the historical baseline — scientific
   continuity, no need to build a separate downscaling step.
-- 5 GCMs × 2 SSPs × 3 periods × monthly is a much smaller acquisition and
+- 5 GCMs × 2 SSPs × 2 periods × monthly is a much smaller acquisition and
   compute footprint than 9 GCMs × daily (the MONTEVITIS/CHELSA-ISIMIP3b
   approach) or even the full 3-SSP version — faster to implement, test
   and defend, and the platform can present results as a clear
@@ -228,6 +241,12 @@ can be added later as a strict extension (same config-driven dataset
 handling as any other scenario) if the professor or a reviewer asks for
 it. `config/climate.toml`'s `[future].scenarios` and `[pilot].scenario`
 reflect this.
+
+**Update (Sept 2026): also revised from 3 periods to 2.** The proposal
+originally included 2011-2040 alongside 2041-2070 and 2071-2100. The
+user decided to drop 2011-2040 entirely (not deferred — out of scope),
+independent of whether the professor ever delivers it for `ensemble1`.
+`config/climate.toml`'s `[future].periods` reflects this.
 
 **The trade-off, to state explicitly rather than leave implicit:**
 monthly data cannot directly support frost-day counts, extreme-heat-day
@@ -410,7 +429,8 @@ plausible values for the region — done above.
 configured", to keep the first real acquisition run's volume
 manageable — see the scenario-bracket decision above): one variable
 (`tas`), the Douro region, all 5 configured GCMs, both configured
-scenarios (`ssp126`, `ssp585`), all 3 periods. That is 5 × 2 × 3 × 12 =
+scenarios (`ssp126`, `ssp585`), all 3 periods (at the time — see the
+Sept 2026 update below). That is 5 × 2 × 3 × 12 =
 360 real downloads — narrower scopes (fewer scenarios/periods, via the
 new script's flags) can validate the pipeline faster before committing
 to the full run.
@@ -477,11 +497,16 @@ real, not just against synthetic fixtures.
 
 **Explicitly NOT done:**
 
-- **The full 360-download sweep** (both scenarios × all 3 periods,
-  instead of just the one ssp585/2041-2070 slice confirmed above)
-  hasn't run yet. `scripts/build_future_climatology.py` with no
+- **The full download sweep** (both scenarios × both configured
+  periods, instead of just the one ssp585/2041-2070 slice confirmed
+  above) hasn't run yet. `scripts/build_future_climatology.py` with no
   `--scenario`/`--period` flags does this; already-downloaded months
-  are reused, so re-running now only fetches the remaining ~300.
+  are reused, so re-running now only fetches the remaining months.
+  **Update (Sept 2026):** the original scope above assumed 3 periods
+  (360 downloads total); 2011-2040 has since been dropped from
+  `config/climate.toml` entirely (Section 2.1/3), so the real remaining
+  full sweep is 5 GCMs × 2 scenarios × 2 periods × 12 months = 240
+  downloads, of which 60 (ssp585/2041-2070) are already done.
 - Variables beyond `tas` (`tasmin`, `tasmax`, `pr`) — the code is
   already generic per-variable (same `CHELSA_VARIABLE_UNITS` core as
   Phase 1), so this is a scope expansion via the script's `--variable`
@@ -627,23 +652,67 @@ only data):**
 precipitation - both work against historical data today and will work
 unchanged against real future/ensemble data once available.
 
-#### Phase 7 — Crop-specific indices — 🔄 redefined (Sept 2026): ingest, not compute
+#### Phase 7 — Crop-specific indices — ✅ ingested and wired into the platform (Sept 2026)
 
 *Depends on Track A decision 4, which now has an answer that changes
 this phase's shape (see the Track A table above).*
 
-**The professor will calculate the crop-specific indices himself and
-deliver the results to the user** — this codebase does not implement
+**The professor calculated the crop-specific indices himself and
+delivered the results to the user** — this codebase does not implement
 Winkler/Huglin/Cool Night/Dryness/chilling-requirement formulas for
-crop-specific thresholds. What was planned below is superseded by
-whatever format the professor's delivery takes; treat this section as
-historical context for the reasoning (crop order, index names, "never
-invent a threshold"), not as a build list to execute.
+crop-specific thresholds; it ingests his output as-is. What was planned
+below (the `<details>` block) is superseded by the format his delivery
+actually took; kept as historical context for the reasoning (crop
+order, index names, "never invent a threshold"), not as a build list
+to execute.
 
-Once the user shares what the professor delivers (a spreadsheet, a
-report, raw values per municipality/period?), the real Phase 7 task is
-to figure out how to ingest it into the pipeline/platform (closer to
-Phase 9 than to new scientific computation) - format TBD.
+**Delivered and ingested (Sept 2026):** `data/raw/ensemble1/` (3
+NetCDF files — historical 1981-2010, ssp126 2041-2070, ssp585
+2041-2070 — 129 bioclimatic/agroclimatic indices each, ~1km grid) plus
+`indices_por_cultura.csv` (per-index code, name, formula, literature
+reference, and a relevance flag per crop — verified 129/129 against
+`ensemble1`'s variable codes, no mismatch; see Section 2.1). Both are
+treated as a working hypothesis, not a final confirmation, until the
+professor confirms the dataset/GCM choice in writing (`docs/02`
+sections 4 and 7).
+
+- `src/indices_catalog.py` + `scripts/build_indices_catalog.py` parse
+  the CSV (Portuguese content kept as delivered — English translation
+  is a tracked follow-up, not done yet, see below) and validate every
+  code against `ensemble1` → `data/processed/pilot/indices_catalog.json`
+  (committed, drives the Atlas's Crop/Index filters and formula box).
+- `src/index_pilot_export.py` + `scripts/build_index_pilot_data.py`
+  crop all 129 bands to each of the 5 zones for each of the 3 epochs,
+  writing a `uint16`-quantized (per-variable scale/offset), compressed
+  GeoTIFF per zone/epoch (`data/processed/pilot/indices/`, committed —
+  142.10MB total measured, comfortably under GitHub's 100MB-per-file
+  limit) plus coverage-weighted mean/min/max stats via `exact_extract`.
+- `api/main.py`: `GET /api/indices` (the catalog), `GET
+  /api/pilot/zones/index/{code}[/{scenario}/{period}]` (all 5 zones'
+  pixel grid + shared min/max in one response), `GET
+  /api/pilot/{region}/index/{code}[/{scenario}/{period}]/point`
+  (exact-pixel lookup by lat/lon) — same allow-list-before-filesystem
+  and build-hint-404 conventions as the rest of this file.
+- `web/atlas.html`/`app.js`: Crop select → Index select (filtered to
+  that crop's relevant codes) → formula box; on a complete
+  Crop/Index/Period/SSP selection, each zone's real pixel grid is
+  painted onto an HTML canvas and overlaid on the map
+  (`L.imageOverlay`) with one shared color scale across all 5 zones —
+  a real heatmap, not a flat per-zone fill. Clicking a zone shows the
+  distribution of its pixel values; clicking a point returns that
+  exact pixel's value. Combinations `ensemble1` doesn't cover (every
+  period except historical and the two SSPs @ 2041-2070) show a "not
+  delivered yet" message instead of inventing a value.
+- `tests/test_indices_catalog.py`, `tests/test_index_pilot_export.py`
+  (synthetic fixtures) and new cases in `tests/test_pilot_api.py` — 23
+  new tests, full suite 171 passed/1 skipped.
+
+**Explicitly deferred, not forgotten:** translating
+`indices_catalog.json`'s Portuguese content (and the Atlas's Index/
+formula display) to English is a separate, later pass — this round
+intentionally kept the professor's Portuguese content as-is to get the
+real data wired in first, per an explicit decision during
+implementation.
 
 <details>
 <summary>Original plan (superseded, kept for context)</summary>
@@ -774,6 +843,16 @@ already had. This is a display-layer change only: the temperature
 pipeline itself (Phases 1-6) is untouched and keeps working/testing
 normally, so it stays available later as an independent cross-check
 once real index data is ingested (see `docs/03` Section 6).
+
+**Update 2 (Sept 2026): real index data now renders on the map.**
+`/api/pilot/zones` (zone geometry, `built: false`) is unchanged and
+the temperature index stays off the map, per the above. But once a
+Crop/Index/Period/SSP combination is selected and Phase 7's data
+exists for it, the zone no longer shows the flat "pending" style — it
+shows a real per-pixel heatmap built from the professor's delivered
+index data (see Phase 7 above and `docs/03` Section 6). The "pending"
+zone styling is now conditional on the current filter selection, not
+permanent.
 
 #### Phase 10 — Scale beyond Douro — 🟡 infrastructure done (Sept 2026), Beira Interior data pending
 

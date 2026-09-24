@@ -42,13 +42,14 @@
       </div>
     </div>
     <p id="banner-subtitle">
-      Click a zone on the map to see its status.
+      Loading crop indices…
     </p>
-    <p id="banner-warning" class="pilot-warning">
-      No zone has index data yet — the professor is calculating the
-      crop-specific bioclimatic indices and will deliver them to the
-      project. All filters stay disabled until that data is ready.
-    </p>
+    <p id="banner-warning" class="pilot-warning" hidden></p>
+    <div id="index-formula-box" class="index-formula-box" hidden>
+      <p id="index-formula-name"></p>
+      <p id="index-formula-value"></p>
+      <p id="index-formula-reference"></p>
+    </div>
   </header>
 
   <main>
@@ -76,6 +77,8 @@
       </div>
     </aside>
   </main>
+
+  <div id="site-footer"></div>
 
   <script src="site-chrome.js"></script>
   <script src="vendor/leaflet/leaflet.js"></script>

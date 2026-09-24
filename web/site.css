@@ -433,9 +433,10 @@ section p {
 /* ---- App shell (atlas.html only) -------------------------------------
    The interactive map needs the full remaining viewport height, so
    this page opts out of the normal scrolling content layout: body
-   becomes a flex column (sticky nav + the platform's own banner,
-   both sized to content, then main filling the rest), and skips the
-   standard hero/footer used by every other page. */
+   becomes a flex column (sticky nav + the platform's own banner, both
+   sized to content, then main filling the rest, then a slim one-line
+   footer) instead of the standard hero/multi-column footer used by
+   every other page. */
 
 body.app-shell {
   display: flex;
@@ -447,6 +448,18 @@ body.app-shell {
 body.app-shell #site-header {
   position: static;
   flex-shrink: 0;
+}
+
+body.app-shell #site-footer {
+  flex-shrink: 0;
+}
+
+body.app-shell .footer-grid {
+  display: none;
+}
+
+body.app-shell .footer-bottom {
+  padding: 6px 24px;
 }
 
 @media (max-width: 640px) {

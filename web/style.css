@@ -148,6 +148,7 @@ main {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   font-size: 0.75rem;
   line-height: 1.4;
+  max-width: 200px;
 }
 
 #legend .swatch {
@@ -166,4 +167,56 @@ main {
   padding: 8px 10px;
   font-size: 0.8rem;
   margin-top: 8px;
+}
+
+.index-formula-box {
+  max-width: 640px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #eef4fb;
+  border: 1px solid #bcd4ee;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.index-formula-box p {
+  margin: 0;
+}
+
+.index-formula-box p + p {
+  margin-top: 3px;
+}
+
+#index-formula-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+#index-formula-value {
+  color: var(--ink);
+}
+
+#index-formula-reference {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+#legend-gradient-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 2px;
+  margin: 4px 0 2px;
+}
+
+#legend-gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.7rem;
+}
+
+#legend-caption {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.68rem;
 }
